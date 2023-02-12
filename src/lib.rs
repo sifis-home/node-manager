@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
 use rsa::padding::PaddingScheme;
