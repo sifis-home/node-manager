@@ -1,8 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: node-manager
-Upstream-Contact: Name Surname <mail@example.com>
-Source: https://your/project/link
+Source: https://github.com/sifis-home/node-manager
 
 Files: *
-Copyright: 2019 Translation Company
+Copyright: 2023 SIFIS-home
 License: MIT
