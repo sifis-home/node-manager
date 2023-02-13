@@ -7,7 +7,7 @@
 The SIFIS-Home NodeManager component contains the logic to collectively
 decide upon membership statuses for SIFIS-Home enabled smart devices.
 
-It interfaces with the DHT component.
+It interfaces with the [DHT component](https://github.com/sifis-home/libp2p-rust-dht).
 
 # Acknowledgements
 
