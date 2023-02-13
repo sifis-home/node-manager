@@ -171,7 +171,7 @@ impl NodeId {
     }
 }
 
-/// A function that converts a PEM encoded RSA key into a NodeId
+/// A function that converts a DER encoded RSA key into a NodeId
 pub type NodeIdGenerator = fn(&[u8]) -> Result<Vec<u8>, ()>;
 
 fn padding_scheme_sign() -> PaddingScheme {
