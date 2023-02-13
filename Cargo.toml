@@ -9,7 +9,7 @@ repository = "https://github.com/sifis-home/node-manager"
 
 [dependencies]
 log = "0.4.17"
-serde = { version = "1.0.152", features = ["derive"] }
+serde = { version = "1.0.140", features = ["derive"] }
 bincode = "1.0"
 sha2 = "0.10"
 rsa = "0.6"
