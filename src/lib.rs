@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, unused_variables)]
 
 use rsa::padding::PaddingScheme;
 use rsa::pkcs8::DecodePrivateKey;
