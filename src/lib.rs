@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use libp2p::identity::Keypair;
-use libp2p::PeerId;
 use rsa::padding::PaddingScheme;
 use rsa::pkcs8::DecodePrivateKey;
 use rsa::rand_core::OsRng;
@@ -161,6 +159,21 @@ impl Message {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NodeId(Vec<u8>);
+
+impl NodeId {
+    pub fn from_data(data: &[u8]) -> Self {
+        Self(data.to_vec())
+    }
+    pub fn data(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// A function that converts a PEM encoded RSA key into a NodeId
+pub type NodeIdGenerator = fn(&[u8]) -> Result<Vec<u8>, ()>;
+
 fn padding_scheme_sign() -> PaddingScheme {
     PaddingScheme::PSS {
         digest: Box::new(sha2::Sha256::new()),
@@ -195,11 +208,12 @@ const SHARED_KEY_LEN: usize = 32;
 
 pub struct NodeManager {
     key_pair: RsaPrivateKey,
+    node_id_generator: NodeIdGenerator,
     /// Shared key of the members network
     shared_key: Vec<u8>,
     node_id: Vec<u8>,
     admin_keys: Vec<(Vec<u8>, RsaPublicKey)>,
-    nodes: HashMap<PeerId, NodeEntry>,
+    nodes: HashMap<NodeId, NodeEntry>,
     // TODO: field storing possibly outstanding vote ID+initialization,
     //       possible "waiting for EncapsulatedKey msg" state,
     //       possible "waiting for EncapsulatedKeys msg" state ...
@@ -207,12 +221,17 @@ pub struct NodeManager {
 }
 
 impl NodeManager {
-    pub fn new_with_shared_key(key_pair_pkcs8_der: &[u8], shared_key: Option<Vec<u8>>) -> Self {
+    pub fn new_with_shared_key(
+        key_pair_pkcs8_der: &[u8],
+        node_id_generator: NodeIdGenerator,
+        shared_key: Option<Vec<u8>>,
+    ) -> Self {
         let key_pair = RsaPrivateKey::from_pkcs8_der(key_pair_pkcs8_der).unwrap();
-        let mut key_pair_pkcs8_der = key_pair_pkcs8_der.to_vec();
+        /*let mut key_pair_pkcs8_der = key_pair_pkcs8_der.to_vec();
         let local_key_pair = Keypair::rsa_from_pkcs8(&mut key_pair_pkcs8_der).unwrap();
         let local_peer_id = PeerId::from(local_key_pair.public());
-        let node_id = local_peer_id.to_bytes();
+        local_peer_id.to_bytes();*/
+        let node_id = node_id_generator(key_pair_pkcs8_der).unwrap();
 
         let shared_key = shared_key.unwrap_or_default();
 
@@ -222,14 +241,15 @@ impl NodeManager {
 
         Self {
             key_pair,
+            node_id_generator,
             shared_key,
             node_id,
             admin_keys: Vec::new(),
             nodes: HashMap::new(),
         }
     }
-    pub fn new(key_pair_pkcs8_der: &[u8]) -> Self {
-        Self::new_with_shared_key(key_pair_pkcs8_der, None)
+    pub fn new(key_pair_pkcs8_der: &[u8], node_id_generator: NodeIdGenerator) -> Self {
+        Self::new_with_shared_key(key_pair_pkcs8_der, node_id_generator, None)
     }
     fn table_hash(&self) -> Vec<u8> {
         let adm_hash = {
@@ -246,7 +266,7 @@ impl NodeManager {
         let nodes_hash = {
             let mut nodes_vec = self.nodes.iter().collect::<Vec<_>>();
             // Do sorting to be deterministic
-            nodes_vec.sort_by_key(|(id, _nd)| *id.as_ref());
+            nodes_vec.sort_by_key(|(id, _nd)| *id);
             let mut nodes_hasher = Sha256::new();
             nodes_hasher.update(b"Nodes");
             nodes_hasher.update((nodes_vec.len() as u64).to_be_bytes());
@@ -268,7 +288,7 @@ impl NodeManager {
         result[..].to_vec()
     }
     pub fn signature_is_valid(&self, msg: &Message) -> bool {
-        let Ok(peer_id) = PeerId::from_bytes(&msg.signer_id) else { return false };
+        let peer_id = NodeId::from_data(&msg.signer_id);
         let Some(node_entry) = self.nodes.get(&peer_id) else { return false };
         msg.signature_is_valid(&node_entry.public_key)
     }

@@ -1,14 +1,18 @@
-use node_manager::{self, NodeManager};
+use node_manager::{self, NodeId, NodeManager};
 use rsa::pkcs8::DecodePrivateKey;
 
 fn make_node_manager() -> NodeManager {
     use rsa::pkcs8::EncodePrivateKey;
 
+    fn gen_fn(data: &[u8]) -> Result<NodeId, ()> {
+        Ok(NodeId::from_data(data))
+    }
+
     let local_key =
         rsa::RsaPrivateKey::from_pkcs8_pem(include_str!("../tests/test_key1.pem")).unwrap();
     let local_key_der = local_key.to_pkcs8_der().unwrap();
 
-    NodeManager::new(local_key_der.as_ref())
+    NodeManager::new(gen_fn, local_key_der.as_ref())
 }
 
 #[test]
