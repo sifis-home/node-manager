@@ -4,7 +4,7 @@
 [![CodeCov][codecov badge]][codecov]
 [![LICENSE][license badge]][license]
 
-The NodeManager component of the SIFIS-Home component contains the logic to collectively
+The SIFIS-Home NodeManager component contains the logic to collectively
 decide upon membership statuses for SIFIS-Home enabled smart devices.
 
 It interfaces with the DHT component.
