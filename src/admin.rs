@@ -1,7 +1,7 @@
 //! Utilities for admin devices
 
 use super::{Message, Operation};
-use rsa::pkcs8::DecodePrivateKey;
+use rsa::pkcs8::{DecodePrivateKey, EncodePublicKey};
 use rsa::RsaPrivateKey;
 use std::error::Error;
 
@@ -25,5 +25,10 @@ impl AdminNode {
     ) -> Result<Message, Box<dyn Error>> {
         let op = Operation::AddByAdmin(node_to_add_der_key.to_owned());
         op.sign(timestamp, &self.key_pair)
+    }
+    pub fn public_key_der(&self) -> Vec<u8> {
+        let doc = self.key_pair.to_public_key().to_public_key_der().unwrap();
+        let sl: &[u8] = doc.as_ref();
+        sl.to_owned()
     }
 }
