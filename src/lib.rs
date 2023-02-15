@@ -318,9 +318,9 @@ impl NodeManager {
         };
         let (cbs_lobby, cbs_members) = msg.operation.can_be_sent_to_lobby_or_members();
         let can_be_sent = if from_members_network {
-            cbs_lobby
-        } else {
             cbs_members
+        } else {
+            cbs_lobby
         };
         if !can_be_sent {
             log::info!("Ignoring message that was sent on the wrong network (members={from_members_network}).");
