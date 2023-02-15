@@ -356,6 +356,15 @@ impl NodeManager {
         msg: &[u8],
         from_members_network: bool,
     ) -> Result<Vec<Response>, Box<dyn Error>> {
+        let timestamp = timestamp();
+        self.handle_msg_ts(msg, from_members_network, timestamp)
+    }
+    pub fn handle_msg_ts(
+        &mut self,
+        msg: &[u8],
+        from_members_network: bool,
+        timestamp: u64,
+    ) -> Result<Vec<Response>, Box<dyn Error>> {
         let Ok(msg): Result<Message, _> = bincode::deserialize(msg) else {
             log::info!("Ignoring message that we couldn't parse.");
             return Ok(Vec::new());
@@ -374,7 +383,6 @@ impl NodeManager {
             log::info!("Ignoring message that had an invalid signature.");
             return Ok(Vec::new());
         }
-        let timestamp = timestamp();
         if !matches!(msg.operation, Operation::AddByAdmin(..))
             && msg.timestamp < timestamp - MAX_MSG_AGE
         {
