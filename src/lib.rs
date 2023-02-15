@@ -318,7 +318,7 @@ impl NodeManager {
         !self.shared_key.is_empty()
     }
     /// Make the node yield a rekeying message, and update its internal key
-    pub fn make_rekeying_msg(&mut self, timestamp: u64) -> Result<Response, Box<dyn Error>> {
+    fn make_rekeying_msg(&mut self, timestamp: u64) -> Result<Response, Box<dyn Error>> {
         // Randomly generate a new key
         let mut buf = [0; SHARED_KEY_LEN];
         getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
