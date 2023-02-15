@@ -320,6 +320,13 @@ impl NodeManager {
             msg.signature_is_valid(&node_entry.public_key)
         }
     }
+    /// Adds the given der formatted key as an admin key
+    pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<(), Box<dyn Error>> {
+        let admin_public_key = RsaPublicKey::from_public_key_der(&admin_key_der)?;
+        self.admin_keys
+            .push((admin_key_der.to_vec(), admin_public_key));
+        Ok(())
+    }
     /// Whether the given node should respond to the specified question on the lobby network
     pub fn is_node_that_responds_lobby(&self) -> bool {
         // TODO: implement logic for choosing node that responds
