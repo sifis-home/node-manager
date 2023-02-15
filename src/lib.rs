@@ -267,6 +267,10 @@ impl NodeManager {
     pub fn node_id(&self) -> &[u8] {
         &self.node_id
     }
+    /// The current shared key
+    pub fn shared_key(&self) -> &[u8] {
+        &self.shared_key
+    }
     fn table_hash(&self) -> Vec<u8> {
         let adm_hash = {
             let mut adm_hasher = Sha256::new();
