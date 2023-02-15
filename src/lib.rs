@@ -1,18 +1,25 @@
 #![allow(dead_code, unused_variables)]
 
 use rsa::padding::PaddingScheme;
-use rsa::pkcs8::DecodePrivateKey;
+use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use rsa::rand_core::OsRng;
 use rsa::{PublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 use std::error::Error;
 
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NodeStatus {
     Member,
     Paused,
+    /// A node is waiting to be let in
+    ///
+    /// We use this status when we add nodes to the table after they show up
+    /// with an AddByAdmin message. If we didn't add nodes to the table, their
+    /// friends could show up with a EncapsulatedKey message and bypass the
+    /// entire entrance mechanism.
+    WaitingEntry,
 }
 
 #[derive(Clone)]
@@ -378,25 +385,59 @@ impl NodeManager {
 
         match msg.operation {
             // Lobby messages
-            Operation::AddByAdmin(node_id) => {
+            Operation::AddByAdmin(node_public_key_der) => {
+                let node_public_key_res = RsaPublicKey::from_public_key_der(&node_public_key_der);
+                let node_id_res = (self.node_id_generator)(&node_public_key_der);
+                let (Ok(node_public_key), Ok(node_id)) = (node_public_key_res, node_id_res) else {
+                    log::info!("Couldn't parse public key of node. Ignoring AddByAdmin message.");
+                    return Ok(Vec::new());
+                };
+                let node_id = NodeId(node_id);
+                // Add node to table as waiting
+                match self.nodes.entry(node_id.clone()) {
+                    Entry::Occupied(ocd) => {
+                        // We still have this node in our table.
+                        // This might be due to a bug
+                        log::info!(
+                            "Couldn't parse public key of node. Ignoring AddByAdmin message."
+                        );
+                        return Ok(Vec::new());
+                    }
+                    Entry::Vacant(vcnt) => {
+                        vcnt.insert(NodeEntry {
+                            public_key: node_public_key.clone(),
+                            public_key_der: node_public_key_der,
+                            status: NodeStatus::WaitingEntry,
+                        });
+                    }
+                }
+                let mut rsps = Vec::new();
+
                 if self.is_node_that_responds_lobby() {
-                    let Ok(encrypted_key) = self.key_pair.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
+                    let Ok(encrypted_key) = node_public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
                     };
-                    let op = Operation::EncapsulatedKey(encrypted_key, node_id);
+                    let op = Operation::EncapsulatedKey(encrypted_key, node_id.0);
                     let Ok(msg) = op.sign(timestamp, &self.key_pair) else {
                         log::info!("Couldn't sign encapsulated key msg. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
                     };
-                    return Ok(vec![Response::Message(msg, false)]);
+                    rsps.push(Response::Message(msg, false))
                 }
-                // TODO add node to table
+                return Ok(rsps);
+                // TODO add node to table as waiting
             }
             Operation::SelfRejoin => {
                 // TODO deduplicate with AddByAdmin
-                if self.is_node_that_responds_lobby() {
-                    let Ok(encrypted_key) = self.key_pair.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
+                let responds_lobby = self.is_node_that_responds_lobby();
+                let node_id = NodeId::from_data(&msg.signer_id);
+                let Some(node_entry) = self.nodes.get_mut(&node_id) else {
+                    log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
+                    return Ok(Vec::new());
+                };
+                if responds_lobby {
+                    let Ok(encrypted_key) = node_entry.public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
                         return Ok(Vec::new());
                     };
@@ -407,7 +448,6 @@ impl NodeManager {
                     };
                     return Ok(vec![Response::Message(msg, false)]);
                 }
-                // TODO add node to table
             }
             Operation::EncapsulatedKey(encrypted_key, node_id) => {
                 if node_id == self.node_id {
