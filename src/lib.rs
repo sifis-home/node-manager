@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::error::Error;
 
-#[derive(Deserialize, Serialize, Copy, Clone, Debug)]
+#[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NodeStatus {
     Member,
     Paused,
@@ -307,6 +307,36 @@ impl NodeManager {
         // TODO: implement logic for choosing node that responds
         !self.shared_key.is_empty()
     }
+    /// Whether the given node should engage in rekeying
+    pub fn is_node_that_does_rekeying(&self) -> bool {
+        // TODO: implement logic for choosing node that performs rekeying
+        !self.shared_key.is_empty()
+    }
+    /// Make the node yield a rekeying message, and update its internal key
+    pub fn make_rekeying_msg(&mut self, timestamp: u64) -> Result<Response, Box<dyn Error>> {
+        // Randomly generate a new key
+        let mut buf = [0; SHARED_KEY_LEN];
+        getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
+        self.shared_key = buf.to_vec();
+        let mut keys = self
+            .nodes
+            .iter()
+            // Important: only the nodes that are members should get the new key
+            .filter(|(_id, nd_entry)| nd_entry.status == NodeStatus::Member)
+            .map(|(id, nd_entry)| {
+                let enc_key = nd_entry.public_key.encrypt(
+                    &mut OsRng,
+                    padding_scheme_encrypt(),
+                    &self.shared_key,
+                )?;
+                let id: Vec<_> = id.0.to_owned();
+                Ok((id, enc_key))
+            })
+            .collect::<Result<Vec<(Vec<_>, _)>, Box<dyn Error>>>()?;
+        keys.sort_by_key(|(id, _enc_key)| id.to_owned());
+        let msg = Operation::EncapsulatedKeys(keys).sign(timestamp, &self.key_pair)?;
+        Ok(Response::Message(msg, true))
+    }
     pub fn handle_msg(
         &mut self,
         msg: &[u8],
@@ -440,8 +470,17 @@ impl NodeManager {
             }
             Operation::SelfPause => {
                 // Change node entry in node table
+                let peer_id = NodeId::from_data(&msg.signer_id);
+                let Some(nd) = self.nodes.get_mut(&peer_id) else {
+                    log::info!("Couldn't find node that pauses membership. Ignoring SelfPause");
+                    return Ok(Vec::new());
+                };
+                nd.status = NodeStatus::Paused;
                 // Engage in rekeying
-                // TODO
+                self.state = ManagerState::WaitingForRekeying;
+                if self.is_node_that_does_rekeying() {
+                    return Ok(vec![self.make_rekeying_msg(timestamp)?]);
+                }
             }
             Operation::SelfRemove => {
                 // Remove node from node table
