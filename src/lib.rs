@@ -10,6 +10,7 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::error::Error;
 pub use crate::node_table::{NodeStatus, NodeEntry};
 
+pub mod admin;
 mod node_table;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

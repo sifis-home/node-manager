@@ -1,0 +1,29 @@
+//! Utilities for admin devices
+
+use super::{Message, Operation};
+use rsa::pkcs8::DecodePrivateKey;
+use rsa::RsaPrivateKey;
+use std::error::Error;
+
+#[derive(Clone)]
+pub struct AdminNode {
+    key_pair_der: Vec<u8>,
+    key_pair: RsaPrivateKey,
+}
+
+impl AdminNode {
+    pub fn from_key_pair_der(der: &[u8]) -> Self {
+        Self {
+            key_pair: RsaPrivateKey::from_pkcs8_der(&der).unwrap(),
+            key_pair_der: der.to_vec(),
+        }
+    }
+    pub fn sign_addition(
+        &self,
+        node_to_add_der_key: &[u8],
+        timestamp: u64,
+    ) -> Result<Message, Box<dyn Error>> {
+        let op = Operation::AddByAdmin(node_to_add_der_key.to_owned());
+        op.sign(timestamp, &self.key_pair)
+    }
+}
