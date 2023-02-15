@@ -201,6 +201,13 @@ fn timestamp() -> u64 {
         .unwrap()
 }
 
+#[derive(PartialEq, Eq, Debug)]
+enum ManagerState {
+    WaitingForKey,
+    MemberOkay,
+    WaitingForRekeying,
+}
+
 /// Maximum age for a message in order for the NodeManager to respond to it
 const MAX_MSG_AGE: u64 = 1_000;
 
@@ -217,6 +224,8 @@ pub struct NodeManager {
     // TODO: field storing possibly outstanding vote ID+initialization,
     //       possible "waiting for EncapsulatedKey msg" state,
     //       possible "waiting for EncapsulatedKeys msg" state ...
+    // Whether we are waiting for some specific message
+    state: ManagerState,
     // TODO: table storing voting proposal cooldowns for nodes
 }
 
@@ -246,6 +255,7 @@ impl NodeManager {
             node_id,
             admin_keys: Vec::new(),
             nodes: HashMap::new(),
+            state: ManagerState::WaitingForKey,
         }
     }
     pub fn new(key_pair_pkcs8_der: &[u8], node_id_generator: NodeIdGenerator) -> Self {
@@ -293,7 +303,7 @@ impl NodeManager {
         msg.signature_is_valid(&node_entry.public_key)
     }
     /// Whether the given node should respond to the specified question on the lobby network
-    pub fn is_node_that_responds(&self) -> bool {
+    pub fn is_node_that_responds_lobby(&self) -> bool {
         // TODO: implement logic for choosing node that responds
         !self.shared_key.is_empty()
     }
@@ -328,11 +338,18 @@ impl NodeManager {
             log::info!("Ignoring message with too large age {msg_age} (max={MAX_MSG_AGE}).");
             return Ok(Vec::new());
         }
+        if from_members_network
+            && (self.shared_key.is_empty() || self.state == ManagerState::WaitingForKey)
+        {
+            // TODO should this be an assertion failure? Maybe not, it might lead to DOS vulnerabilities.
+            log::info!("Ignoring message sent on members network while we are not actually on it.");
+            return Ok(Vec::new());
+        }
 
         match msg.operation {
             // Lobby messages
             Operation::AddByAdmin(node_id) => {
-                if self.is_node_that_responds() {
+                if self.is_node_that_responds_lobby() {
                     let Ok(encrypted_key) = self.key_pair.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
@@ -348,7 +365,7 @@ impl NodeManager {
             }
             Operation::SelfRejoin => {
                 // TODO deduplicate with AddByAdmin
-                if self.is_node_that_responds() {
+                if self.is_node_that_responds_lobby() {
                     let Ok(encrypted_key) = self.key_pair.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
                         return Ok(Vec::new());
@@ -364,13 +381,18 @@ impl NodeManager {
             }
             Operation::EncapsulatedKey(encrypted_key, node_id) => {
                 if node_id == self.node_id {
-                    // TODO STATE check if we actually *want* to (re)join, as in, if we've
+                    // Check if we actually *want* to (re)join, as in, if we've
                     // requested that before
+                    if self.state == ManagerState::WaitingForKey {
+                        log::info!("Didn't expect EncapsulatedKey message. Ignoring it.");
+                        return Ok(Vec::new());
+                    }
                     if let Ok(key) = self
                         .key_pair
                         .decrypt(padding_scheme_encrypt(), &encrypted_key)
                     {
                         if key.len() == SHARED_KEY_LEN {
+                            self.state = ManagerState::MemberOkay;
                             return Ok(vec![Response::SetSharedKey(key)]);
                         } else {
                             log::info!("Shared key has invalid length {}.", key.len());
@@ -387,7 +409,11 @@ impl NodeManager {
             Operation::VoteProposal(proposal) => todo!(),
             Operation::Vote(proposal_hash, desc) => todo!(),
             Operation::EncapsulatedKeys(keys_enc) => {
-                // TODO STATE check that we are in a rekeying state
+                // Check that we are in a rekeying state
+                if self.state == ManagerState::WaitingForRekeying {
+                    log::info!("Didn't expect EncapsulatedKeys message. Ignoring it.");
+                    return Ok(Vec::new());
+                }
                 let Some((_, enc_key)) = keys_enc.iter()
                     .find(|(node_id, _enc_key)| *node_id == self.node_id) else
                 {
