@@ -408,7 +408,6 @@ impl NodeManager {
                     rsps.push(Response::Message(msg, false))
                 }
                 return Ok(rsps);
-                // TODO add node to table as waiting
             }
             Operation::SelfRejoin => {
                 // TODO deduplicate with AddByAdmin
