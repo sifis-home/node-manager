@@ -377,7 +377,7 @@ impl NodeManager {
                 let node_id = NodeId(node_id);
                 // Add node to table as waiting
                 match self.nodes.entry(node_id.clone()) {
-                    Entry::Occupied(ocd) => {
+                    Entry::Occupied(_ocd) => {
                         // We still have this node in our table.
                         // This might be due to a bug
                         log::info!(
