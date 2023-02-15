@@ -263,6 +263,10 @@ impl NodeManager {
     pub fn new(key_pair_pkcs8_der: &[u8], node_id_generator: NodeIdGenerator) -> Self {
         Self::new_with_shared_key(key_pair_pkcs8_der, node_id_generator, None)
     }
+    /// The id of the node represented by this node manager
+    pub fn node_id(&self) -> &[u8] {
+        &self.node_id
+    }
     fn table_hash(&self) -> Vec<u8> {
         let adm_hash = {
             let mut adm_hasher = Sha256::new();
