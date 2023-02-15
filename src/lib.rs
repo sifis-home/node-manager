@@ -129,6 +129,12 @@ impl Message {
     /// Checks if the signature of the message is valid
     pub fn signature_is_valid(&self, key: &RsaPublicKey) -> bool {
         let digest = self.digest();
+        self.digest_is_valid(&digest, key)
+    }
+    /// Checks if the signature is valid for the given digest
+    ///
+    /// The digest mut fit to the message! Use [`Self::signature_is_valid`]
+    pub(crate) fn digest_is_valid(&self, digest: &[u8], key: &RsaPublicKey) -> bool {
         if key
             .verify(padding_scheme_sign(), &digest, &self.signature)
             .is_err()
@@ -208,6 +214,7 @@ pub struct NodeManager {
     /// Shared key of the members network
     shared_key: Vec<u8>,
     node_id: Vec<u8>,
+    /// List of admin keys, given as tuples of `(<DER formatted key>, RsaPublicKey)`
     admin_keys: Vec<(Vec<u8>, RsaPublicKey)>,
     nodes: HashMap<NodeId, NodeEntry>,
     // TODO: field storing possibly outstanding vote ID+initialization,
@@ -288,8 +295,16 @@ impl NodeManager {
     }
     pub fn signature_is_valid(&self, msg: &Message) -> bool {
         let peer_id = NodeId::from_data(&msg.signer_id);
-        let Some(node_entry) = self.nodes.get(&peer_id) else { return false };
-        msg.signature_is_valid(&node_entry.public_key)
+        if matches!(msg.operation, Operation::AddByAdmin(..)) {
+            // Look in the list of admin keys for the right one
+            let digest = msg.digest();
+            self.admin_keys
+                .iter()
+                .any(|(_der, key)| msg.digest_is_valid(&digest, &key))
+        } else {
+            let Some(node_entry) = self.nodes.get(&peer_id) else { return false };
+            msg.signature_is_valid(&node_entry.public_key)
+        }
     }
     /// Whether the given node should respond to the specified question on the lobby network
     pub fn is_node_that_responds_lobby(&self) -> bool {
