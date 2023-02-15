@@ -239,7 +239,12 @@ impl NodeManager {
         local_peer_id.to_bytes();*/
         let node_id = node_id_generator(key_pair_pkcs8_der).unwrap();
 
-        let shared_key = shared_key.unwrap_or_default();
+        let (shared_key, state) = if let Some(k) = shared_key {
+            (k, ManagerState::WaitingForKey)
+        } else {
+            // TODO we need to do more than just wait for MemberOkay
+            (Vec::new(), ManagerState::MemberOkay)
+        };
 
         if ![0, SHARED_KEY_LEN].contains(&shared_key.len()) {
             panic!("Invalid length for shared key: {}", shared_key.len());
@@ -252,7 +257,7 @@ impl NodeManager {
             node_id,
             admin_keys: Vec::new(),
             nodes: HashMap::new(),
-            state: ManagerState::WaitingForKey,
+            state,
         }
     }
     pub fn new(key_pair_pkcs8_der: &[u8], node_id_generator: NodeIdGenerator) -> Self {
