@@ -2,7 +2,7 @@
 
 pub use crate::node_table::{NodeEntry, NodeStatus};
 use rsa::padding::PaddingScheme;
-use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
+use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePublicKey};
 use rsa::rand_core::OsRng;
 use rsa::{PublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
@@ -238,7 +238,9 @@ impl NodeManager {
         let local_key_pair = Keypair::rsa_from_pkcs8(&mut key_pair_pkcs8_der).unwrap();
         let local_peer_id = PeerId::from(local_key_pair.public());
         local_peer_id.to_bytes();*/
-        let node_id = node_id_generator(key_pair_pkcs8_der).unwrap();
+        let key_pub = key_pair.to_public_key().to_public_key_der().unwrap();
+
+        let node_id = node_id_generator(key_pub.as_ref()).unwrap();
 
         let (shared_key, state) = if let Some(k) = shared_key {
             (k, ManagerState::WaitingForKey)
