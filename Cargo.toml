@@ -14,3 +14,6 @@ bincode = "1.0"
 sha2 = "0.10"
 rsa = "0.6"
 getrandom = "0.2"
+
+[dev-dependencies]
+env_logger = "0.10.0"

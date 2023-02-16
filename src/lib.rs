@@ -509,6 +509,7 @@ impl NodeManager {
                         log::info!("Ignoring encapsulated key message that we couldn't decrypt.");
                     }
                 } else {
+                    log::debug!("Discarding irrelevant EncapsulatedKey message.");
                     // discard, not for us
                 }
             }
