@@ -115,8 +115,8 @@ fn node_manager_test_joining() {
     #![allow(unused_assignments)]
     init_logger();
 
-    let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
     let admin_key_pair_der = key_pem_to_der(TEST_KEY_1);
+    let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
     let mut nodes = vec![
         make_node_manager_key(TEST_KEY_2, Some(TEST_SHARED_KEY.to_vec())),
