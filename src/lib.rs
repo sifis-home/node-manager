@@ -573,9 +573,17 @@ impl NodeManager {
                 }
             }
             Operation::SelfRemove => {
-                // Remove node from node table
+                // Change node entry in node table
+                let peer_id = NodeId::from_data(&msg.signer_id);
+                if self.nodes.remove(&peer_id).is_none() {
+                    log::info!("Couldn't find node for removal. Not doing any removal.");
+                    return Ok(Vec::new());
+                };
                 // Engage in rekeying
-                // TODO
+                self.state = ManagerState::WaitingForRekeying;
+                if self.is_node_that_does_rekeying() {
+                    return Ok(vec![self.make_rekeying_msg(timestamp)?]);
+                }
             }
             Operation::KeepAlive(_node_table_hash) => {
                 // Ignore for now.
