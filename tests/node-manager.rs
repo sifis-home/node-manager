@@ -124,23 +124,21 @@ fn node_manager_test_joining() {
         make_node_manager(TEST_KEY_4),
     ];
 
+    let key_3_der_public = key_pem_pair_to_der_public(TEST_KEY_3);
     let key_4_der_public = key_pem_pair_to_der_public(TEST_KEY_4);
 
     let admin_public_key_der = admin.public_key_der();
     nodes.iter_mut().for_each(|nd| {
         nd.add_admin_key_der(&admin_public_key_der).unwrap();
     });
-    nodes[..=1].iter_mut().for_each(|nd| {
-        nd.add_admin_key_der(&admin_public_key_der).unwrap();
-    });
 
-    let msg = admin.sign_addition(&key_4_der_public, 77).unwrap();
+    let msg_add_1 = admin.sign_addition(&key_4_der_public, 77).unwrap();
 
     let mut new_keys;
     let mut msg_buf = MsgBuf::new();
 
     // Distribute the addition message on the lobby network
-    msg_buf.entry(None).or_default().push(msg);
+    msg_buf.entry(None).or_default().push(msg_add_1);
 
     // One round of message handling
     (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, 100_500);
@@ -149,8 +147,22 @@ fn node_manager_test_joining() {
 
     (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, 100_600);
 
+    // Node 2 has joined!
     assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
     assert_eq!(new_keys[2], Some(TEST_SHARED_KEY.to_vec()));
 
-    // Node 2 has joined!
+    let msg_add_2 = admin.sign_addition(&key_3_der_public, 100_650).unwrap();
+
+    // Distribute the addition message on the lobby network
+    msg_buf.entry(None).or_default().push(msg_add_2);
+
+    (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, 100_700);
+
+    assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
+
+    (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, 100_800);
+
+    // Node 1 has joined!
+    assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+    assert_eq!(new_keys[1], Some(TEST_SHARED_KEY.to_vec()));
 }
