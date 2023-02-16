@@ -101,11 +101,12 @@ impl Operation {
     pub fn sign(
         self,
         timestamp: u64,
+        signer_id: &[u8],
         signer_key: &RsaPrivateKey,
     ) -> Result<Message, Box<dyn Error>> {
         let mut msg = Message {
             timestamp,
-            signer_id: vec![], // TODO
+            signer_id: signer_id.to_owned(),
             signature: Vec::new(),
             operation: self,
         };
@@ -309,7 +310,10 @@ impl NodeManager {
     }
     pub fn signature_is_valid(&self, msg: &Message) -> bool {
         let peer_id = NodeId::from_data(&msg.signer_id);
-        if matches!(msg.operation, Operation::AddByAdmin(..)) {
+        if msg.signer_id == admin::ADMIN_ID {
+            if !matches!(msg.operation, Operation::AddByAdmin(..)) {
+                return false;
+            }
             // Look in the list of admin keys for the right one
             let digest = msg.digest();
             self.admin_keys
@@ -359,7 +363,8 @@ impl NodeManager {
             })
             .collect::<Result<Vec<(Vec<_>, _)>, Box<dyn Error>>>()?;
         keys.sort_by_key(|(id, _enc_key)| id.to_owned());
-        let msg = Operation::EncapsulatedKeys(keys).sign(timestamp, &self.key_pair)?;
+        let msg =
+            Operation::EncapsulatedKeys(keys).sign(timestamp, &self.node_id, &self.key_pair)?;
         Ok(Response::Message(msg, true))
     }
     pub fn handle_msg(
@@ -445,7 +450,7 @@ impl NodeManager {
                         return Ok(Vec::new());
                     };
                     let op = Operation::EncapsulatedKey(encrypted_key, node_id.0);
-                    let Ok(msg) = op.sign(timestamp, &self.key_pair) else {
+                    let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
                         log::info!("Couldn't sign encapsulated key msg. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
                     };
@@ -467,7 +472,7 @@ impl NodeManager {
                         return Ok(Vec::new());
                     };
                     let op = Operation::EncapsulatedKey(encrypted_key, self.node_id.clone());
-                    let Ok(msg) = op.sign(timestamp, &self.key_pair) else {
+                    let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
                         log::info!("Couldn't sign encapsulated key msg. Ignoring SelfRejoin message.");
                         return Ok(Vec::new());
                     };

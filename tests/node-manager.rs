@@ -27,7 +27,7 @@ fn node_manager_test_signing() {
 
     let test_op = node_manager::Operation::AddByAdmin(vec![1, 2, 3, 4]);
 
-    let msg = test_op.clone().sign(246_802_000, &test_key_1).unwrap();
+    let msg = test_op.clone().sign(246_802_000, &[], &test_key_1).unwrap();
 
     assert!(msg.signature_is_valid(&test_key_1));
 
