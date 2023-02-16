@@ -58,8 +58,8 @@ pub enum Operation {
     SelfRejoin,
     /// The encapsulated shared key, encrypted for member with the specified node id.
     ///
-    /// Data: (key, node id)
-    EncapsulatedKey(Vec<u8>, Vec<u8>),
+    /// Data: (key, node id, node table)
+    EncapsulatedKey(Vec<u8>, Vec<u8>, Vec<u8>),
 
     // ------------------------------------
     // Operations for the members network:
@@ -156,7 +156,7 @@ impl Message {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId(Vec<u8>);
 
 impl NodeId {
@@ -457,7 +457,8 @@ impl NodeManager {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
                     };
-                    let op = Operation::EncapsulatedKey(encrypted_key, node_id.0);
+                    let node_table_bytes = node_table::serialize(&self.nodes)?;
+                    let op = Operation::EncapsulatedKey(encrypted_key, node_id.0, node_table_bytes);
                     let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
                         log::info!("Couldn't sign encapsulated key msg. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
@@ -479,7 +480,12 @@ impl NodeManager {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
                         return Ok(Vec::new());
                     };
-                    let op = Operation::EncapsulatedKey(encrypted_key, self.node_id.clone());
+                    let node_table_bytes = node_table::serialize(&self.nodes)?;
+                    let op = Operation::EncapsulatedKey(
+                        encrypted_key,
+                        self.node_id.clone(),
+                        node_table_bytes,
+                    );
                     let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
                         log::info!("Couldn't sign encapsulated key msg. Ignoring SelfRejoin message.");
                         return Ok(Vec::new());
@@ -487,7 +493,7 @@ impl NodeManager {
                     return Ok(vec![Response::Message(msg, false)]);
                 }
             }
-            Operation::EncapsulatedKey(encrypted_key, node_id) => {
+            Operation::EncapsulatedKey(encrypted_key, node_id, node_table_bytes) => {
                 if node_id == self.node_id {
                     // Check if we actually *want* to (re)join, as in, if we've
                     // requested that before
@@ -495,11 +501,16 @@ impl NodeManager {
                         log::info!("Didn't expect EncapsulatedKey message. Ignoring it.");
                         return Ok(Vec::new());
                     }
+                    let Ok(node_table) = node_table::from_data(&node_table_bytes) else {
+                        log::info!("Couldn't parse NodeTable. Ignoring EncapsulatedKey message.");
+                        return Ok(Vec::new());
+                    };
                     if let Ok(key) = self
                         .key_pair
                         .decrypt(padding_scheme_encrypt(), &encrypted_key)
                     {
                         if key.len() == SHARED_KEY_LEN {
+                            self.nodes = node_table;
                             self.state = ManagerState::MemberOkay;
                             return Ok(vec![Response::SetSharedKey(key)]);
                         } else {
