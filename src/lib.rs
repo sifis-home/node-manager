@@ -447,6 +447,7 @@ impl NodeManager {
                             public_key: node_public_key.clone(),
                             public_key_der: node_public_key_der,
                             status: NodeStatus::WaitingEntry,
+                            last_seen_time: timestamp,
                         });
                     }
                 }
@@ -501,7 +502,7 @@ impl NodeManager {
                         log::info!("Didn't expect EncapsulatedKey message. Ignoring it.");
                         return Ok(Vec::new());
                     }
-                    let Ok(node_table) = node_table::from_data(&node_table_bytes) else {
+                    let Ok(node_table) = node_table::from_data(&node_table_bytes, timestamp) else {
                         log::info!("Couldn't parse NodeTable. Ignoring EncapsulatedKey message.");
                         return Ok(Vec::new());
                     };
@@ -586,8 +587,13 @@ impl NodeManager {
                 }
             }
             Operation::KeepAlive(_node_table_hash) => {
-                // Ignore for now.
-                // TODO implement keep alive logic
+                // Update last seen value in node's entry
+                let peer_id = NodeId::from_data(&msg.signer_id);
+                let Some(nd) = self.nodes.get_mut(&peer_id) else {
+                    log::info!("Couldn't find node that pauses membership. Ignoring SelfPause");
+                    return Ok(Vec::new());
+                };
+                nd.last_seen_time = timestamp;
             }
         }
 

@@ -23,12 +23,13 @@ pub struct NodeEntry {
     pub public_key: RsaPublicKey,
     pub public_key_der: Vec<u8>,
     pub status: NodeStatus,
+    pub last_seen_time: u64,
     // TODO: trust
 }
 
 pub type NodeTable = HashMap<NodeId, NodeEntry>;
 
-pub fn from_data(data: &[u8]) -> Result<NodeTable, Box<dyn Error>> {
+pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable, Box<dyn Error>> {
     let nodes_list: Vec<(NodeId, (Vec<u8>, NodeStatus))> = bincode::deserialize(data)?;
     let nodes = nodes_list
         .into_iter()
@@ -39,6 +40,7 @@ pub fn from_data(data: &[u8]) -> Result<NodeTable, Box<dyn Error>> {
                     public_key: RsaPublicKey::from_public_key_der(&public_key_der).unwrap(),
                     public_key_der,
                     status,
+                    last_seen_time: timestamp,
                 },
             );
             Ok(tuple)
@@ -57,6 +59,7 @@ pub fn serialize(this: &NodeTable) -> Result<Vec<u8>, Box<dyn Error>> {
                     public_key_der,
                     public_key: _,
                     status,
+                    last_seen_time: _,
                 },
             )| (id, public_key_der, status),
         )
