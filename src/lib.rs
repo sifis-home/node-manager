@@ -395,7 +395,13 @@ impl NodeManager {
             log::info!("Ignoring message that was sent on the wrong network (members={from_members_network}).");
             return Ok(Vec::new());
         }
-        if !self.signature_is_valid(&msg) {
+        if msg.signer_id == self.node_id {
+            log::debug!("Ignoring message that was sent by ourselves.");
+            return Ok(Vec::new());
+        }
+        if !matches!(msg.operation, Operation::EncapsulatedKey(..))
+            && !self.signature_is_valid(&msg)
+        {
             log::info!("Ignoring message that had an invalid signature.");
             return Ok(Vec::new());
         }
