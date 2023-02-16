@@ -2,6 +2,8 @@ use node_manager::{self, Message, NodeManager, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
 use std::collections::HashMap;
 
+// More can e.g. be generated via:
+// openssl genrsa -out tests/test_keyN.pem 2048
 const TEST_KEY_1: &str = include_str!("test_key1.pem");
 const TEST_KEY_2: &str = include_str!("test_key2.pem");
 const TEST_KEY_3: &str = include_str!("test_key3.pem");
