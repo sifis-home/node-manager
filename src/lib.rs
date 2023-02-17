@@ -221,10 +221,11 @@ pub struct NodeManager {
     /// List of admin keys, given as tuples of `(<DER formatted key>, RsaPublicKey)`
     admin_keys: Vec<(Vec<u8>, RsaPublicKey)>,
     nodes: HashMap<NodeId, NodeEntry>,
-    // TODO: field storing possibly outstanding vote ID+initialization,
-    //       possible "waiting for EncapsulatedKey msg" state,
-    //       possible "waiting for EncapsulatedKeys msg" state ...
-    // Whether we are waiting for some specific message
+    /// Field storing a multitude of states for the node,
+    /// mostly whether we wait for something to happen
+    ///
+    /// * possible "waiting for EncapsulatedKey msg" state
+    /// * possible "waiting for EncapsulatedKeys msg" state
     state: ManagerState,
     // TODO: table storing voting proposal cooldowns for nodes
 }
