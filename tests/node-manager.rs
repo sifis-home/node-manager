@@ -1,4 +1,4 @@
-use node_manager::{self, Message, NodeManager, Response};
+use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
 use std::collections::HashMap;
 
@@ -40,7 +40,11 @@ fn make_node_manager_key(pem: &str, key: Option<Vec<u8>>) -> NodeManager {
         Ok(data.to_vec())
     }
 
-    NodeManager::new_with_shared_key(&key_pem_to_der(pem), gen_fn, key)
+    let mut builder = NodeManagerBuilder::new(&key_pem_to_der(pem), gen_fn);
+    if let Some(key) = key {
+        builder = builder.shared_key(key);
+    }
+    builder.build()
 }
 
 #[test]

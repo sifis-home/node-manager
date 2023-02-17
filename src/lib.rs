@@ -1,8 +1,9 @@
 #![allow(dead_code, unused_variables)]
 
+pub use crate::builder::NodeManagerBuilder;
 pub use crate::node_table::{NodeEntry, NodeStatus};
 use rsa::padding::PaddingScheme;
-use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePublicKey};
+use rsa::pkcs8::DecodePublicKey;
 use rsa::rand_core::OsRng;
 use rsa::{PublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,7 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::error::Error;
 
 pub mod admin;
+mod builder;
 mod node_table;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -228,43 +230,8 @@ pub struct NodeManager {
 }
 
 impl NodeManager {
-    pub fn new_with_shared_key(
-        key_pair_pkcs8_der: &[u8],
-        node_id_generator: NodeIdGenerator,
-        shared_key: Option<Vec<u8>>,
-    ) -> Self {
-        let key_pair = RsaPrivateKey::from_pkcs8_der(key_pair_pkcs8_der).unwrap();
-        /*let mut key_pair_pkcs8_der = key_pair_pkcs8_der.to_vec();
-        let local_key_pair = Keypair::rsa_from_pkcs8(&mut key_pair_pkcs8_der).unwrap();
-        let local_peer_id = PeerId::from(local_key_pair.public());
-        local_peer_id.to_bytes();*/
-        let key_pub = key_pair.to_public_key().to_public_key_der().unwrap();
-
-        let node_id = node_id_generator(key_pub.as_ref()).unwrap();
-
-        let (shared_key, state) = if let Some(k) = shared_key {
-            (k, ManagerState::WaitingForKey)
-        } else {
-            // TODO we need to do more than just wait for MemberOkay
-            (Vec::new(), ManagerState::MemberOkay)
-        };
-
-        if ![0, SHARED_KEY_LEN].contains(&shared_key.len()) {
-            panic!("Invalid length for shared key: {}", shared_key.len());
-        }
-
-        Self {
-            key_pair,
-            node_id_generator,
-            shared_key,
-            node_id,
-            admin_keys: Vec::new(),
-            nodes: HashMap::new(),
-            state,
-        }
-    }
     pub fn new(key_pair_pkcs8_der: &[u8], node_id_generator: NodeIdGenerator) -> Self {
-        Self::new_with_shared_key(key_pair_pkcs8_der, node_id_generator, None)
+        NodeManagerBuilder::new(key_pair_pkcs8_der, node_id_generator).build()
     }
     /// The id of the node represented by this node manager
     pub fn node_id(&self) -> &[u8] {
