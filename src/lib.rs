@@ -207,8 +207,12 @@ enum ManagerState {
     WaitingForRekeying,
 }
 
-/// Maximum age for a message in order for the NodeManager to respond to it
+/// Maximum age for a message in order for the NodeManager to consider it as valid
 const MAX_MSG_AGE: u64 = 1_000;
+
+/// Maximum time since a node was last seen before we consider it as not visible any more
+// TODO: make this a multiple of a future keep alive interval
+const MAX_SEEN_TIME_FOR_RESPONSE: u64 = 15_000;
 
 const SHARED_KEY_LEN: usize = 32;
 
@@ -302,14 +306,31 @@ impl NodeManager {
         Ok(())
     }
     /// Whether the given node should respond to the specified question on the lobby network
-    pub fn is_node_that_responds_lobby(&self) -> bool {
-        // TODO: implement logic for choosing node that responds
-        !self.shared_key.is_empty()
+    fn is_node_that_responds_lobby(&self, timestamp: u64) -> bool {
+        if self.shared_key.is_empty() {
+            // We don't have a shared key ourselves yet
+            return false;
+        }
+        let min_node_qualifying = self
+            .nodes
+            .iter()
+            .filter(|(_nd, entry)| {
+                entry.status == NodeStatus::Member && timestamp.saturating_sub(entry.last_seen_time) <= MAX_SEEN_TIME_FOR_RESPONSE
+            })
+            .min_by_key(|&(id, _nd)| &*id);
+        let Some(min_node_qualifying) = min_node_qualifying else {
+            // No node is qualifying! This is bad.
+            log::info!("No qualifying node found, at least there should be us!");
+            return true;
+        };
+        if self.node_id > min_node_qualifying.0 .0 {
+            return false;
+        }
+        true
     }
     /// Whether the given node should engage in rekeying
-    pub fn is_node_that_does_rekeying(&self) -> bool {
-        // TODO: implement logic for choosing node that performs rekeying
-        !self.shared_key.is_empty()
+    fn is_node_that_does_rekeying(&self, timestamp: u64) -> bool {
+        self.is_node_that_responds_lobby(timestamp)
     }
     /// Make the node yield a rekeying message, and update its internal key
     fn make_rekeying_msg(&mut self, timestamp: u64) -> Result<Response, Box<dyn Error>> {
@@ -421,7 +442,7 @@ impl NodeManager {
                 }
                 let mut rsps = Vec::new();
 
-                if self.is_node_that_responds_lobby() {
+                if self.is_node_that_responds_lobby(timestamp) {
                     let Ok(encrypted_key) = node_public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
@@ -438,7 +459,7 @@ impl NodeManager {
             }
             Operation::SelfRejoin => {
                 // TODO deduplicate with AddByAdmin
-                let responds_lobby = self.is_node_that_responds_lobby();
+                let responds_lobby = self.is_node_that_responds_lobby(timestamp);
                 let node_id = NodeId::from_data(&msg.signer_id);
                 let Some(node_entry) = self.nodes.get_mut(&node_id) else {
                     log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
@@ -537,7 +558,7 @@ impl NodeManager {
                 nd.status = NodeStatus::Paused;
                 // Engage in rekeying
                 self.state = ManagerState::WaitingForRekeying;
-                if self.is_node_that_does_rekeying() {
+                if self.is_node_that_does_rekeying(timestamp) {
                     return Ok(vec![self.make_rekeying_msg(timestamp)?]);
                 }
             }
@@ -550,7 +571,7 @@ impl NodeManager {
                 };
                 // Engage in rekeying
                 self.state = ManagerState::WaitingForRekeying;
-                if self.is_node_that_does_rekeying() {
+                if self.is_node_that_does_rekeying(timestamp) {
                     return Ok(vec![self.make_rekeying_msg(timestamp)?]);
                 }
             }
