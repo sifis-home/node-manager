@@ -4,10 +4,34 @@ use std::collections::HashMap;
 
 // More can e.g. be generated via:
 // openssl genrsa -out tests/test_keyN.pem 2048
-const TEST_KEY_1: &str = include_str!("test_key1.pem");
-const TEST_KEY_2: &str = include_str!("test_key2.pem");
-const TEST_KEY_3: &str = include_str!("test_key3.pem");
-const TEST_KEY_4: &str = include_str!("test_key4.pem");
+
+const TEST_KEY_1: &str = include_str!("keys/test_key1.pem");
+const TEST_KEY_2: &str = include_str!("keys/test_key2.pem");
+const TEST_KEY_3: &str = include_str!("keys/test_key3.pem");
+const TEST_KEY_4: &str = include_str!("keys/test_key4.pem");
+
+const TEST_KEYS: &[&str] = &[
+    include_str!("keys/test_key1.pem"),
+    include_str!("keys/test_key2.pem"),
+    include_str!("keys/test_key3.pem"),
+    include_str!("keys/test_key4.pem"),
+    include_str!("keys/test_key5.pem"),
+    include_str!("keys/test_key6.pem"),
+    include_str!("keys/test_key7.pem"),
+    include_str!("keys/test_key8.pem"),
+    include_str!("keys/test_key9.pem"),
+    include_str!("keys/test_key10.pem"),
+    include_str!("keys/test_key11.pem"),
+    include_str!("keys/test_key12.pem"),
+    include_str!("keys/test_key13.pem"),
+    include_str!("keys/test_key14.pem"),
+    include_str!("keys/test_key15.pem"),
+    include_str!("keys/test_key16.pem"),
+    include_str!("keys/test_key17.pem"),
+    include_str!("keys/test_key18.pem"),
+    include_str!("keys/test_key19.pem"),
+    include_str!("keys/test_key20.pem"),
+];
 
 const TEST_SHARED_KEY: &[u8] = &[1; 32];
 
@@ -169,4 +193,61 @@ fn node_manager_test_joining() {
     // Node 1 has joined!
     assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
     assert_eq!(new_keys[1], Some(TEST_SHARED_KEY.to_vec()));
+}
+
+#[test]
+fn node_manager_test_joining_20() {
+    #![allow(unused_assignments)]
+    init_logger();
+
+    let admin_key_pair_der = key_pem_to_der(TEST_KEY_1);
+    let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
+
+    let mut nodes = vec![make_node_manager_key(
+        TEST_KEY_2,
+        Some(TEST_SHARED_KEY.to_vec()),
+    )];
+    nodes.extend(TEST_KEYS[2..].iter().map(|k| make_node_manager(k)));
+
+    let keys_public = TEST_KEYS[2..]
+        .iter()
+        .map(|k| key_pem_pair_to_der_public(k))
+        .collect::<Vec<_>>();
+
+    let admin_public_key_der = admin.public_key_der();
+    nodes.iter_mut().for_each(|nd| {
+        nd.add_admin_key_der(&admin_public_key_der).unwrap();
+    });
+
+    let msgs_add = keys_public
+        .iter()
+        .map(|kp| admin.sign_addition(&kp, 77).unwrap())
+        .collect::<Vec<_>>();
+
+    let mut new_keys;
+    let mut msg_buf = MsgBuf::new();
+
+    println!("Nodes generated");
+
+    for (i, msg_add) in msgs_add.into_iter().enumerate() {
+        // Distribute the addition message on the lobby network
+        msg_buf.entry(None).or_default().push(msg_add);
+
+        let ts = 100_000 + i as u64 * 100;
+        // One round of message handling
+        (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, ts);
+
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
+
+        (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, ts + 50);
+
+        // Node has joined!
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+        assert_eq!(
+            new_keys[i + 1],
+            Some(TEST_SHARED_KEY.to_vec()),
+            "can't see node {} as joined",
+            i + 1
+        );
+    }
 }
