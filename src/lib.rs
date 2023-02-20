@@ -365,7 +365,7 @@ impl NodeManager {
             .min_by_key(|&(id, _nd)| id);
         let Some(min_node_qualifying) = min_node_qualifying else {
             // No node is qualifying! This is bad.
-            log::info!("No qualifying node found, at least there should be us!");
+            log::info!("No qualifying leader node found, at least there should be us!");
             return true;
         };
         if self.node_id > min_node_qualifying.0 .0 {
@@ -589,7 +589,7 @@ impl NodeManager {
                         log::info!("Ignoring encapsulated key message that we couldn't decrypt.");
                     }
                 } else {
-                    log::debug!("Discarding irrelevant EncapsulatedKey message.");
+                    log::debug!("Discarding irrelevant EncapsulatedKey message (not for us).");
                     // discard, not for us
                 }
             }
