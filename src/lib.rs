@@ -173,7 +173,7 @@ impl Message {
     /// The digest mut fit to the message! Use [`Self::signature_is_valid`]
     pub(crate) fn digest_is_valid(&self, digest: &[u8], key: &RsaPublicKey) -> bool {
         if key
-            .verify(padding_scheme_sign(), &digest, &self.signature)
+            .verify(padding_scheme_sign(), digest, &self.signature)
             .is_err()
         {
             return false;
@@ -326,7 +326,7 @@ impl NodeManager {
             let digest = msg.digest();
             self.admin_keys
                 .iter()
-                .any(|(_der, key)| msg.digest_is_valid(&digest, &key))
+                .any(|(_der, key)| msg.digest_is_valid(&digest, key))
         } else {
             let Some(node_entry) = self.nodes.get(&peer_id) else { return false };
             msg.signature_is_valid(&node_entry.public_key)
@@ -334,7 +334,7 @@ impl NodeManager {
     }
     /// Adds the given der formatted key as an admin key
     pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<(), Box<dyn Error>> {
-        let admin_public_key = RsaPublicKey::from_public_key_der(&admin_key_der)?;
+        let admin_public_key = RsaPublicKey::from_public_key_der(admin_key_der)?;
         self.admin_keys
             .push((admin_key_der.to_vec(), admin_public_key));
         Ok(())
@@ -352,7 +352,7 @@ impl NodeManager {
                 entry.status == NodeStatus::Member
                     && timestamp.saturating_sub(entry.last_seen_time) <= MAX_SEEN_TIME_FOR_RESPONSE
             })
-            .min_by_key(|&(id, _nd)| &*id);
+            .min_by_key(|&(id, _nd)| id);
         let Some(min_node_qualifying) = min_node_qualifying else {
             // No node is qualifying! This is bad.
             log::info!("No qualifying node found, at least there should be us!");

@@ -16,7 +16,7 @@ pub struct AdminNode {
 impl AdminNode {
     pub fn from_key_pair_der(der: &[u8]) -> Self {
         Self {
-            key_pair: RsaPrivateKey::from_pkcs8_der(&der).unwrap(),
+            key_pair: RsaPrivateKey::from_pkcs8_der(der).unwrap(),
             key_pair_der: der.to_vec(),
         }
     }
