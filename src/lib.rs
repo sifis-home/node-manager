@@ -3,7 +3,7 @@
 pub use crate::builder::NodeManagerBuilder;
 pub use crate::node_table::{NodeEntry, NodeStatus};
 use rsa::padding::PaddingScheme;
-use rsa::pkcs8::DecodePublicKey;
+use rsa::pkcs8::{DecodePublicKey, EncodePublicKey};
 use rsa::rand_core::OsRng;
 use rsa::{PublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
@@ -279,6 +279,13 @@ impl NodeManager {
     /// The current shared key
     pub fn shared_key(&self) -> &[u8] {
         &self.shared_key
+    }
+    /// The public key in DER format
+    pub fn public_key_der(&self) -> Vec<u8> {
+        let key_pub = self.key_pair.to_public_key().to_public_key_der().unwrap();
+
+        let key_der_slice: &[u8] = key_pub.as_ref();
+        key_der_slice.to_vec()
     }
     fn table_hash(&self) -> Vec<u8> {
         let adm_hash = {

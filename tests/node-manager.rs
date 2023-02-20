@@ -230,55 +230,47 @@ impl NetworkSimulator {
         self.msg_buf = msg_buf;
         new_keys
     }
+    fn handle_node_join(&mut self, node_idx: usize, ts_1: u64, ts_2: u64) {
+        let node_public_der = self.nodes[node_idx].public_key_der();
+        let msg_add = self.admin.sign_addition(&node_public_der, 77).unwrap();
+
+        // Distribute the addition message on the lobby network
+        self.msg_buf.entry(None).or_default().push(msg_add);
+
+        // One round of message handling
+        let mut new_keys;
+        new_keys = self.msg_buf_round(ts_1);
+
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
+
+        // Another round for the response
+        new_keys = self.msg_buf_round(ts_2);
+
+        // Node has joined!
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+        assert_eq!(
+            new_keys[node_idx],
+            Some(TEST_SHARED_KEY.to_vec()),
+            "can't see node {} as joined",
+            node_idx
+        );
+    }
 }
 
 #[test]
 fn node_manager_test_joining_20() {
-    #![allow(unused_assignments)]
     init_logger();
 
     let nodes = vec![make_node_manager_key(
         TEST_KEY_2,
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-
     let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..]);
-
-    let keys_public = TEST_KEYS[2..]
-        .iter()
-        .map(|k| key_pem_pair_to_der_public(k))
-        .collect::<Vec<_>>();
-
-    let msgs_add = keys_public
-        .iter()
-        .map(|kp| sim.admin.sign_addition(&kp, 77).unwrap())
-        .collect::<Vec<_>>();
-
-    let mut new_keys;
 
     println!("Nodes generated");
 
-    for (i, msg_add) in msgs_add.into_iter().enumerate() {
-        // Distribute the addition message on the lobby network
-        sim.msg_buf.entry(None).or_default().push(msg_add);
-
+    for (i, _) in TEST_KEYS[2..].iter().enumerate() {
         let ts = 100_000 + i as u64 * 100;
-
-        // One round of message handling
-        new_keys = sim.msg_buf_round(ts);
-
-        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
-
-        // Another round for the response
-        new_keys = sim.msg_buf_round(ts + 50);
-
-        // Node has joined!
-        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
-        assert_eq!(
-            new_keys[i + 1],
-            Some(TEST_SHARED_KEY.to_vec()),
-            "can't see node {} as joined",
-            i + 1
-        );
+        sim.handle_node_join(i + 1, ts, ts + 50);
     }
 }
