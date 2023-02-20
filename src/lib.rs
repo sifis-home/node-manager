@@ -423,6 +423,14 @@ impl NodeManager {
             Descision::No
         }
     }
+
+    /// Handles the message
+    ///
+    /// Same as [`handle_msg_ts`](Self::handle_msg_ts), but the timestamp is set
+    /// to the current timestamp.
+    ///
+    /// Returns a list of actions that the caller must perform (change the key
+    /// for the members network, broadcast a message...).
     pub fn handle_msg(
         &mut self,
         msg: &[u8],
@@ -431,6 +439,11 @@ impl NodeManager {
         let timestamp = timestamp();
         self.handle_msg_ts(msg, from_members_network, timestamp)
     }
+
+    /// Handles the message
+    ///
+    /// Same as [`handle_msg`](Self::handle_msg), but you can customize the
+    /// timestamp.
     pub fn handle_msg_ts(
         &mut self,
         msg: &[u8],
