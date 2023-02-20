@@ -1,3 +1,4 @@
+use node_manager::admin::AdminNode;
 use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
 use std::collections::HashMap;
@@ -195,51 +196,81 @@ fn node_manager_test_joining() {
     assert_eq!(new_keys[1], Some(TEST_SHARED_KEY.to_vec()));
 }
 
+struct NetworkSimulator {
+    admin: AdminNode,
+    nodes: Vec<NodeManager>,
+    msg_buf: MsgBuf,
+}
+
+impl NetworkSimulator {
+    fn new(
+        admin_key_pair_pem: &str,
+        init_nodes: Vec<NodeManager>,
+        add_nodes_keys_pem: &[&str],
+    ) -> Self {
+        let admin_key_pair_der = key_pem_to_der(admin_key_pair_pem);
+        let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
+
+        let mut nodes = init_nodes;
+        nodes.extend(add_nodes_keys_pem.iter().map(|k| make_node_manager(k)));
+
+        let admin_public_key_der = admin.public_key_der();
+        nodes.iter_mut().for_each(|nd| {
+            nd.add_admin_key_der(&admin_public_key_der).unwrap();
+        });
+
+        Self {
+            admin,
+            nodes,
+            msg_buf: MsgBuf::new(),
+        }
+    }
+    fn msg_buf_round(&mut self, ts: u64) -> Vec<Option<Vec<u8>>> {
+        let (new_keys, msg_buf) = handle_msg_buf(&mut self.nodes, &self.msg_buf, ts);
+        self.msg_buf = msg_buf;
+        new_keys
+    }
+}
+
 #[test]
 fn node_manager_test_joining_20() {
     #![allow(unused_assignments)]
     init_logger();
 
-    let admin_key_pair_der = key_pem_to_der(TEST_KEY_1);
-    let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
-
-    let mut nodes = vec![make_node_manager_key(
+    let nodes = vec![make_node_manager_key(
         TEST_KEY_2,
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-    nodes.extend(TEST_KEYS[2..].iter().map(|k| make_node_manager(k)));
+
+    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..]);
 
     let keys_public = TEST_KEYS[2..]
         .iter()
         .map(|k| key_pem_pair_to_der_public(k))
         .collect::<Vec<_>>();
 
-    let admin_public_key_der = admin.public_key_der();
-    nodes.iter_mut().for_each(|nd| {
-        nd.add_admin_key_der(&admin_public_key_der).unwrap();
-    });
-
     let msgs_add = keys_public
         .iter()
-        .map(|kp| admin.sign_addition(&kp, 77).unwrap())
+        .map(|kp| sim.admin.sign_addition(&kp, 77).unwrap())
         .collect::<Vec<_>>();
 
     let mut new_keys;
-    let mut msg_buf = MsgBuf::new();
 
     println!("Nodes generated");
 
     for (i, msg_add) in msgs_add.into_iter().enumerate() {
         // Distribute the addition message on the lobby network
-        msg_buf.entry(None).or_default().push(msg_add);
+        sim.msg_buf.entry(None).or_default().push(msg_add);
 
         let ts = 100_000 + i as u64 * 100;
+
         // One round of message handling
-        (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, ts);
+        new_keys = sim.msg_buf_round(ts);
 
         assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
 
-        (new_keys, msg_buf) = handle_msg_buf(&mut nodes, &msg_buf, ts + 50);
+        // Another round for the response
+        new_keys = sim.msg_buf_round(ts + 50);
 
         // Node has joined!
         assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
