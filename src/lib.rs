@@ -180,7 +180,7 @@ impl Message {
         }
         true
     }
-    fn digest(&self) -> Vec<u8> {
+    pub(crate) fn digest(&self) -> Vec<u8> {
         let mut hasher = Sha256::new();
         hasher.update(b"Message");
         hasher.update(self.timestamp.to_be_bytes());
@@ -317,19 +317,22 @@ impl NodeManager {
         result[..].to_vec()
     }
     pub fn signature_is_valid(&self, msg: &Message) -> bool {
+        let digest = msg.digest();
+        self.digest_is_valid_for_msg(&digest, msg)
+    }
+    pub(crate) fn digest_is_valid_for_msg(&self, digest: &[u8], msg: &Message) -> bool {
         let peer_id = NodeId::from_data(&msg.signer_id);
         if msg.signer_id == admin::ADMIN_ID {
             if !matches!(msg.operation, Operation::AddByAdmin(..)) {
                 return false;
             }
             // Look in the list of admin keys for the right one
-            let digest = msg.digest();
             self.admin_keys
                 .iter()
                 .any(|(_der, key)| msg.digest_is_valid(&digest, key))
         } else {
             let Some(node_entry) = self.nodes.get(&peer_id) else { return false };
-            msg.signature_is_valid(&node_entry.public_key)
+            msg.digest_is_valid(&digest, &node_entry.public_key)
         }
     }
     /// Adds the given der formatted key as an admin key
@@ -445,8 +448,9 @@ impl NodeManager {
             log::debug!("Ignoring message that was sent by ourselves.");
             return Ok(Vec::new());
         }
+        let msg_digest = msg.digest();
         if !matches!(msg.operation, Operation::EncapsulatedKey(..))
-            && !self.signature_is_valid(&msg)
+            && !self.digest_is_valid_for_msg(&msg_digest, &msg)
         {
             log::info!("Ignoring message that had an invalid signature.");
             return Ok(Vec::new());
@@ -573,8 +577,7 @@ impl NodeManager {
             // Members messages
             Operation::VoteProposal(operation) => {
                 // Reject the newer proposal
-                // TODO calculate the proposal hash
-                let prop_hash = Vec::new();
+                let prop_hash = msg_digest;
                 if let Some(vp) = &self.vote_proposal {
                     if vp.hash == prop_hash {
                         // The proposal is just the same we are currently voting on
