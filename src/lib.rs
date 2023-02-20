@@ -25,10 +25,34 @@ pub enum VoteOperation {
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct VoteProposal {
-    pub timestamp: u64,
-    pub state_hash: Vec<u8>,
-    pub initiator_id: Vec<u8>,
-    pub operation: VoteOperation,
+    initiator_id: Vec<u8>,
+    hash: Vec<u8>,
+    initiation_time: u64,
+    /// Tally of the Votes
+    votes: HashMap<Vec<u8>, VoteEntry>,
+    operation: VoteOperation,
+}
+
+impl VoteProposal {
+    fn has_descision(&self) -> Option<Descision> {
+        let possible_votes_count = self.votes.len();
+        let mut yes_count = 0;
+        let mut no_count = 0;
+        for (_node_id, v_en) in self.votes.iter() {
+            if v_en == &VoteEntry::Voted(Descision::Yes) {
+                yes_count += 1;
+            } else if v_en == &VoteEntry::Voted(Descision::No) {
+                no_count += 1;
+            }
+        }
+        if yes_count * 2 >= possible_votes_count - 1 {
+            return Some(Descision::Yes);
+        }
+        if no_count * 2 >= possible_votes_count - 1 {
+            return Some(Descision::No);
+        }
+        None
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -41,7 +65,14 @@ pub enum Response {
     Message(Message, bool),
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VoteEntry {
+    Voted(Descision),
+    NotVoted,
+    VotedBadly,
+}
+
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Descision {
     Yes,
     No,
@@ -67,8 +98,10 @@ pub enum Operation {
     // Operations for the members network:
     // ------------------------------------
     /// A proposal for a vote
-    VoteProposal(VoteProposal),
+    VoteProposal(VoteOperation),
     /// Participation in a vote proposal
+    ///
+    /// Data: (vote hash, descision)
     Vote(Vec<u8>, Descision),
     /// The encapsulated shared keys, encrypted for each member
     ///
@@ -231,6 +264,7 @@ pub struct NodeManager {
     /// * possible "waiting for EncapsulatedKey msg" state
     /// * possible "waiting for EncapsulatedKeys msg" state
     state: ManagerState,
+    vote_proposal: Option<VoteProposal>,
     // TODO: table storing voting proposal cooldowns for nodes
 }
 
@@ -358,6 +392,26 @@ impl NodeManager {
         let msg =
             Operation::EncapsulatedKeys(keys).sign(timestamp, &self.node_id, &self.key_pair)?;
         Ok(Response::Message(msg, true))
+    }
+    fn decide_vote(&self, op: &VoteOperation) -> Descision {
+        // Default: accept, but deny in 1/8 of cases
+        // TODO: implement a trust based scheme here, instead of just random choice.
+        fn rng() -> bool {
+            let mut arr = [0; 1];
+            getrandom::getrandom(&mut arr).unwrap();
+            arr[0] & 0b111 == 0
+        }
+        let VoteOperation::Remove(id) = op;
+        if id == &self.node_id {
+            // Obviously, if this is about *ourselves* being kicked out,
+            // argue against it.
+            return Descision::No;
+        }
+        if rng() {
+            Descision::Yes
+        } else {
+            Descision::No
+        }
     }
     pub fn handle_msg(
         &mut self,
@@ -517,8 +571,97 @@ impl NodeManager {
             }
 
             // Members messages
-            Operation::VoteProposal(proposal) => todo!(),
-            Operation::Vote(proposal_hash, desc) => todo!(),
+            Operation::VoteProposal(operation) => {
+                // Reject the newer proposal
+                // TODO calculate the proposal hash
+                let prop_hash = Vec::new();
+                if let Some(vp) = &self.vote_proposal {
+                    if vp.hash == prop_hash {
+                        // The proposal is just the same we are currently voting on
+                        // (there should be no degradation from replay-like attacks)
+                        return Ok(Vec::new());
+                    }
+                    if vp.initiation_time < msg.timestamp {
+                        // The currently ongoing vote proposal is older,
+                        // ignore the newer one.
+                        // TODO: implement better choice logic
+                        return Ok(Vec::new());
+                    }
+                }
+                // Of course the proposal can't be from the future.
+                let initiation_time = timestamp.max(msg.timestamp);
+                let mut votes: HashMap<_, _> = self
+                    .nodes
+                    .iter()
+                    .filter_map(|(node_id, node_entry)| {
+                        if node_entry.status != NodeStatus::Member {
+                            return None;
+                        }
+                        Some((node_id.0.clone(), VoteEntry::NotVoted))
+                    })
+                    .collect();
+                votes.insert(msg.signer_id.clone(), VoteEntry::Voted(Descision::Yes));
+
+                // Determine our own descision on the proposal
+                let desc = self.decide_vote(&operation);
+                votes.insert(self.node_id.clone(), VoteEntry::Voted(desc));
+                let op = Operation::Vote(prop_hash.clone(), desc);
+
+                let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+                    log::warn!("Couldn't sign vote msg. Ignoring VoteProposal message.");
+                    return Ok(Vec::new());
+                };
+
+                // Create and store the proposal
+                let proposal = VoteProposal {
+                    initiator_id: msg.signer_id.clone(),
+                    initiation_time,
+                    hash: prop_hash,
+                    votes,
+                    operation,
+                };
+                self.vote_proposal = Some(proposal);
+
+                // Broadcast our descision
+                return Ok(vec![Response::Message(msg, true)]);
+            }
+            Operation::Vote(proposal_hash, desc) => {
+                let Some(vp) = &mut self.vote_proposal else {
+                    // TODO, due to ordering noise, it is possible that votes arrive before proposals.
+                    // Therefore, we should instead keep a buffer of these votes and only discard if we have reason to.
+                    log::info!("Got a vote while no vote proposal was active. Ignoring vote.");
+                    return Ok(Vec::new());
+                };
+                if proposal_hash != vp.hash {
+                    // TODO, same as above, we should maybe keep these in a buffer or such.
+                    log::info!("Hash mismatch of vote and ongoing vote proposal. Ignoring vote.");
+                    return Ok(Vec::new());
+                }
+                if let Some(ven) = vp.votes.get_mut(&msg.signer_id) {
+                    match *ven {
+                        VoteEntry::NotVoted => *ven = VoteEntry::Voted(desc),
+                        VoteEntry::Voted(ven_desc) => {
+                            if ven_desc != desc {
+                                // Duplicate vote, with different descisions.
+                                // Set to error.
+                                *ven = VoteEntry::VotedBadly;
+                                // TODO lower trust
+                                log::info!("Duplicate vote by the same node with disjunct descision {desc:?} vs earlier {ven_desc:?}.");
+                                return Ok(Vec::new());
+                            } else {
+                                // Duplicate vote, but with the same descision. Ignore.
+                                log::info!("Duplicate vote by the same node.");
+                                return Ok(Vec::new());
+                            }
+                        }
+                        // Don't do anything here. Maybe log?
+                        VoteEntry::VotedBadly => (),
+                    }
+                } else {
+                    log::info!("Node tried to vote even though it wasn't allowed to. Ignoring.");
+                    return Ok(Vec::new());
+                }
+            }
             Operation::EncapsulatedKeys(keys_enc) => {
                 // Check that we are in a rekeying state
                 if self.state == ManagerState::WaitingForRekeying {

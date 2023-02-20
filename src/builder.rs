@@ -58,6 +58,7 @@ impl NodeManagerBuilder {
             admin_keys: Vec::new(),
             nodes: HashMap::new(),
             state,
+            vote_proposal: None,
         }
     }
 }
