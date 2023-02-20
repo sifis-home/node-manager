@@ -17,3 +17,9 @@ getrandom = "0.2"
 
 [dev-dependencies]
 env_logger = "0.10.0"
+
+# RSA operations are slow, we want the tests to be fast, even in debug mode
+[profile.dev.package."rsa"]
+opt-level = 3
+[profile.dev.package."num-bigint-dig"]
+opt-level = 3
