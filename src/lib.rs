@@ -34,7 +34,7 @@ pub struct VoteProposal {
 }
 
 impl VoteProposal {
-    fn has_descision(&self) -> Option<Descision> {
+    fn maybe_get_descision(&self) -> Option<Descision> {
         let possible_votes_count = self.votes.len();
         let mut yes_count = 0;
         let mut no_count = 0;
@@ -629,40 +629,61 @@ impl NodeManager {
                 return Ok(vec![Response::Message(msg, true)]);
             }
             Operation::Vote(proposal_hash, desc) => {
-                let Some(vp) = &mut self.vote_proposal else {
+                let opt_desc = if let Some(vp) = &mut self.vote_proposal {
+                    if proposal_hash != vp.hash {
+                        // TODO, same as above, we should maybe keep these in a buffer or such.
+                        log::info!(
+                            "Hash mismatch of vote and ongoing vote proposal. Ignoring vote."
+                        );
+                        return Ok(Vec::new());
+                    }
+                    if let Some(ven) = vp.votes.get_mut(&msg.signer_id) {
+                        match *ven {
+                            VoteEntry::NotVoted => *ven = VoteEntry::Voted(desc),
+                            VoteEntry::Voted(ven_desc) => {
+                                if ven_desc != desc {
+                                    // Duplicate vote, with different descisions.
+                                    // Set to error.
+                                    *ven = VoteEntry::VotedBadly;
+                                    // TODO lower trust
+                                    log::info!("Duplicate vote by the same node with disjunct descision {desc:?} vs earlier {ven_desc:?}.");
+                                    return Ok(Vec::new());
+                                } else {
+                                    // Duplicate vote, but with the same descision. Ignore.
+                                    log::info!("Duplicate vote by the same node.");
+                                    return Ok(Vec::new());
+                                }
+                            }
+                            // Don't do anything here. Maybe log?
+                            VoteEntry::VotedBadly => (),
+                        }
+                    } else {
+                        log::info!(
+                            "Node tried to vote even though it wasn't allowed to. Ignoring."
+                        );
+                        return Ok(Vec::new());
+                    }
+
+                    vp.maybe_get_descision()
+                } else {
                     // TODO, due to ordering noise, it is possible that votes arrive before proposals.
                     // Therefore, we should instead keep a buffer of these votes and only discard if we have reason to.
                     log::info!("Got a vote while no vote proposal was active. Ignoring vote.");
                     return Ok(Vec::new());
                 };
-                if proposal_hash != vp.hash {
-                    // TODO, same as above, we should maybe keep these in a buffer or such.
-                    log::info!("Hash mismatch of vote and ongoing vote proposal. Ignoring vote.");
-                    return Ok(Vec::new());
-                }
-                if let Some(ven) = vp.votes.get_mut(&msg.signer_id) {
-                    match *ven {
-                        VoteEntry::NotVoted => *ven = VoteEntry::Voted(desc),
-                        VoteEntry::Voted(ven_desc) => {
-                            if ven_desc != desc {
-                                // Duplicate vote, with different descisions.
-                                // Set to error.
-                                *ven = VoteEntry::VotedBadly;
-                                // TODO lower trust
-                                log::info!("Duplicate vote by the same node with disjunct descision {desc:?} vs earlier {ven_desc:?}.");
-                                return Ok(Vec::new());
-                            } else {
-                                // Duplicate vote, but with the same descision. Ignore.
-                                log::info!("Duplicate vote by the same node.");
-                                return Ok(Vec::new());
-                            }
+                if let Some(desc) = opt_desc {
+                    // Descision reached: remove the vote proposal
+                    let vp = self.vote_proposal.take().unwrap();
+                    if desc == Descision::Yes {
+                        // Enact the descision: remove the node, and perform a rekeying.
+                        let VoteOperation::Remove(node_to_remove) = vp.operation;
+                        let node_to_remove = NodeId::from_data(&node_to_remove);
+                        self.nodes.remove(&node_to_remove);
+                        // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
+                        if self.is_node_that_does_rekeying(timestamp) {
+                            return Ok(vec![self.make_rekeying_msg(timestamp)?]);
                         }
-                        // Don't do anything here. Maybe log?
-                        VoteEntry::VotedBadly => (),
                     }
-                } else {
-                    log::info!("Node tried to vote even though it wasn't allowed to. Ignoring.");
-                    return Ok(Vec::new());
                 }
             }
             Operation::EncapsulatedKeys(keys_enc) => {
