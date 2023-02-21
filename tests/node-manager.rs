@@ -254,6 +254,7 @@ impl NetworkSimulator {
             "can't see node {} as joined",
             node_idx
         );
+        assert_eq!(self.nodes[node_idx].shared_key(), TEST_SHARED_KEY.to_vec());
     }
 }
 

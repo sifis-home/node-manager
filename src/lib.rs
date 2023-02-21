@@ -580,6 +580,7 @@ impl NodeManager {
                     {
                         if key.len() == SHARED_KEY_LEN {
                             self.nodes = node_table;
+                            self.shared_key = key.clone();
                             self.state = ManagerState::MemberOkay;
                             return Ok(vec![Response::SetSharedKey(key)]);
                         } else {
