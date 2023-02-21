@@ -106,7 +106,8 @@ fn handle_msg_buf(
 ) -> (Vec<Option<Vec<u8>>>, MsgBuf) {
     let mut new_buf = MsgBuf::new();
     let mut new_shared_keys = vec![None; nodes.len()];
-    log::info!("Distributing messages to nodes...");
+    let msgs_count: usize = buf.iter().map(|(_, msgs)| msgs.len()).sum();
+    log::info!("Distributing {msgs_count} messages to nodes...");
     for (node_i, node) in nodes.iter_mut().enumerate() {
         for (net_id, msgs) in buf {
             for msg in msgs {
