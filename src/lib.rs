@@ -590,8 +590,12 @@ impl NodeManager {
                         log::info!("Ignoring encapsulated key message that we couldn't decrypt.");
                     }
                 } else {
-                    log::debug!("Discarding irrelevant EncapsulatedKey message (not for us).");
-                    // discard, not for us
+                    // not for us, but we use this opportunity to turn the node into a member.
+                    if let Some(ne) = self.nodes.get_mut(&NodeId::from_data(&node_id)) {
+                        ne.status = NodeStatus::Member;
+                    } else {
+                        log::info!("Couldn't find node receiving the encapsulated key in the node table. Ignoring EncapsulatedKey message.");
+                    }
                 }
             }
 
