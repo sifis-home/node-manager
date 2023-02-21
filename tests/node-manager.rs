@@ -1,6 +1,7 @@
 use node_manager::admin::AdminNode;
 use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 // More can e.g. be generated via:
@@ -61,11 +62,14 @@ fn key_pem_pair_to_der_public(key_pem: &str) -> Vec<u8> {
 }
 
 fn make_node_manager_key(pem: &str, key: Option<Vec<u8>>) -> NodeManager {
-    fn gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
-        Ok(data.to_vec())
+    fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
+        let mut hasher = Sha256::new();
+        hasher.update(data);
+        let bytes = hasher.finalize()[..8].to_vec();
+        Ok(bytes)
     }
 
-    let mut builder = NodeManagerBuilder::new(&key_pem_to_der(pem), gen_fn);
+    let mut builder = NodeManagerBuilder::new(&key_pem_to_der(pem), id_gen_fn);
     if let Some(key) = key {
         builder = builder.shared_key(key);
     }
