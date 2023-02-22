@@ -488,9 +488,13 @@ impl NodeManager {
             return Ok(Vec::new());
         }
         let msg_digest = msg.digest();
-        if !matches!(msg.operation, Operation::EncapsulatedKey(..))
-            && !self.digest_is_valid_for_msg(&msg_digest, &msg)
+        let key_for_us = if let Operation::EncapsulatedKey(_enc_key, node_id, _nt) = &msg.operation
         {
+            node_id == &self.node_id
+        } else {
+            false
+        };
+        if !key_for_us && !self.digest_is_valid_for_msg(&msg_digest, &msg) {
             log::info!("Ignoring message that had an invalid signature.");
             return Ok(Vec::new());
         }
@@ -598,6 +602,8 @@ impl NodeManager {
                         .decrypt(padding_scheme_encrypt(), &encrypted_key)
                     {
                         if key.len() == SHARED_KEY_LEN {
+                            // TODO check that the msg_digest corresponds to the entry in the node table
+                            // This check would not bring much though for security.
                             self.nodes = node_table;
                             if let Some(ne) = self.nodes.get_mut(&NodeId::from_data(&node_id)) {
                                 ne.status = NodeStatus::Member;
