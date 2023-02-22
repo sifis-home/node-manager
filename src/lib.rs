@@ -377,14 +377,24 @@ impl NodeManager {
             log::info!("No qualifying leader node found, at least there should be us!");
             return true;
         };
-        if self.node_id > min_node_qualifying.0 .0 {
+        fn fmt_hex_arr(arr: &[u8]) -> String {
+            arr.iter().map(|v| format!("{v:02x}")).collect()
+        }
+        log::debug!(
+            "Min qualifying: {:?}, us: {:?}",
+            fmt_hex_arr(&(min_node_qualifying.0).0),
+            fmt_hex_arr(&self.node_id)
+        );
+        if self.node_id > (min_node_qualifying.0).0 {
             return false;
         }
         true
     }
     /// Whether the given node should engage in rekeying
     fn is_node_that_does_rekeying(&self, timestamp: u64) -> bool {
-        self.is_node_that_responds_lobby(timestamp)
+        let does_rekeying = self.is_node_that_responds_lobby(timestamp);
+        log::debug!("does_rekeying = {does_rekeying}");
+        does_rekeying
     }
     /// Make the node yield a rekeying message, and update its internal key
     fn make_rekeying_msg(&mut self, timestamp: u64) -> Result<Response, Box<dyn Error>> {
