@@ -398,7 +398,7 @@ impl NodeManager {
         does_rekeying
     }
     /// Make the node yield a rekeying message, and update its internal key
-    fn make_rekeying_msg(&mut self, timestamp: u64) -> Result<Response, Box<dyn Error>> {
+    fn make_rekeying(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
         // Randomly generate a new key
         let mut buf = [0; SHARED_KEY_LEN];
         getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
@@ -433,7 +433,10 @@ impl NodeManager {
         keys.sort_by_key(|(id, _enc_key)| id.to_owned());
         let msg =
             Operation::EncapsulatedKeys(keys).sign(timestamp, &self.node_id, &self.key_pair)?;
-        Ok(Response::Message(msg, true))
+        Ok(vec![
+            Response::Message(msg, true),
+            Response::SetSharedKey(self.shared_key.clone()),
+        ])
     }
     fn decide_vote(&self, op: &VoteOperation) -> Descision {
         // Default: accept, but deny in 1/8 of cases
@@ -750,7 +753,7 @@ impl NodeManager {
                         // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
                         self.state = ManagerState::WaitingForRekeying;
                         if self.is_node_that_does_rekeying(timestamp) {
-                            return Ok(vec![self.make_rekeying_msg(timestamp)?]);
+                            return Ok(self.make_rekeying(timestamp)?);
                         }
                     }
                 }
@@ -796,7 +799,7 @@ impl NodeManager {
                 // Engage in rekeying
                 self.state = ManagerState::WaitingForRekeying;
                 if self.is_node_that_does_rekeying(timestamp) {
-                    return Ok(vec![self.make_rekeying_msg(timestamp)?]);
+                    return Ok(self.make_rekeying(timestamp)?);
                 }
             }
             Operation::SelfRemove => {
@@ -809,7 +812,7 @@ impl NodeManager {
                 // Engage in rekeying
                 self.state = ManagerState::WaitingForRekeying;
                 if self.is_node_that_does_rekeying(timestamp) {
-                    return Ok(vec![self.make_rekeying_msg(timestamp)?]);
+                    return Ok(self.make_rekeying(timestamp)?);
                 }
             }
             Operation::KeepAlive(_node_table_hash) => {
