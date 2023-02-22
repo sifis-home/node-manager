@@ -745,7 +745,7 @@ impl NodeManager {
                 let Some((_, enc_key)) = keys_enc.iter()
                     .find(|(node_id, _enc_key)| *node_id == self.node_id) else
                 {
-                    log::info!("Didn't find entry for our node in EncapsulatedKeys message, ignoring it.");
+                    log::info!("Didn't find entry for our node in EncapsulatedKeys msg (cnt = {}), ignoring it.", keys_enc.len());
                     return Ok(Vec::new());
                 };
 
