@@ -550,9 +550,7 @@ impl NodeManager {
                     Entry::Occupied(_ocd) => {
                         // We still have this node in our table.
                         // This might be due to a bug
-                        log::info!(
-                            "Couldn't parse public key of node. Ignoring AddByAdmin message."
-                        );
+                        log::info!("Node already in table. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
                     }
                     Entry::Vacant(vcnt) => {
