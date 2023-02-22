@@ -449,6 +449,22 @@ impl NodeManager {
         }
     }
 
+    /// Broadcasts a self removal message
+    ///
+    /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
+    /// the message.
+    pub fn self_remove(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+        let op = Operation::SelfRemove;
+        let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+            log::info!("Couldn't sign self remove msg. Not creating self removal msg.");
+            return Ok(Vec::new());
+        };
+        self.shared_key = Vec::new();
+        // We aren't really waiting for a key here, but this is the closest...
+        self.state = ManagerState::WaitingForKey;
+        return Ok(vec![Response::Message(msg, true)]);
+    }
+
     /// Handles the message
     ///
     /// Same as [`handle_msg_ts`](Self::handle_msg_ts), but the timestamp is set

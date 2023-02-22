@@ -288,3 +288,39 @@ fn node_manager_test_joining_20() {
         sim.handle_node_join(i + 1, ts, ts + 50);
     }
 }
+
+#[test]
+fn node_manager_test_self_remove() {
+    init_logger();
+
+    let nodes = vec![make_node_manager_key(
+        TEST_KEY_2,
+        Some(TEST_SHARED_KEY.to_vec()),
+    )];
+    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+
+    log::info!("######## Nodes generated ########");
+
+    let mut ts = 100_000;
+    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+        sim.handle_node_join(i + 1, ts, ts + 50);
+        ts += 100;
+    }
+
+    log::info!("######## Nodes joined ########");
+
+    // Now issue a rekeying command
+    let msg_self_remove = sim.nodes[4].self_remove(ts).unwrap();
+    let [Response::Message(msg_self_remove, true)] = &msg_self_remove[..] else { panic!("wrong format!") };
+    sim.msg_buf
+        .entry(Some(TEST_SHARED_KEY.to_vec()))
+        .or_default()
+        .push(msg_self_remove.clone());
+    let new_keys = sim.msg_buf_round(ts);
+    assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+    let new_keys = sim.msg_buf_round(ts);
+    assert_eq!(
+        new_keys.iter().filter(|k| k.is_some()).count(),
+        sim.nodes.len() - 2 // minus one for the removed, minus one for the rekeying node
+    );
+}
