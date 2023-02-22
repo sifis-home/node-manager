@@ -381,7 +381,7 @@ impl NodeManager {
             arr.iter().map(|v| format!("{v:02x}")).collect()
         }
         log::debug!(
-            "Min qualifying: {:?}, us: {:?}",
+            "Min: {:?}, us: {:?}",
             fmt_hex_arr(&(min_node_qualifying.0).0),
             fmt_hex_arr(&self.node_id)
         );
@@ -738,7 +738,7 @@ impl NodeManager {
             }
             Operation::EncapsulatedKeys(keys_enc) => {
                 // Check that we are in a rekeying state
-                if self.state == ManagerState::WaitingForRekeying {
+                if self.state != ManagerState::WaitingForRekeying {
                     log::info!("Didn't expect EncapsulatedKeys message. Ignoring it.");
                     return Ok(Vec::new());
                 }
