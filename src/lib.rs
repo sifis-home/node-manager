@@ -580,6 +580,11 @@ impl NodeManager {
                     {
                         if key.len() == SHARED_KEY_LEN {
                             self.nodes = node_table;
+                            if let Some(ne) = self.nodes.get_mut(&NodeId::from_data(&node_id)) {
+                                ne.status = NodeStatus::Member;
+                            } else {
+                                log::info!("Couldn't find ourselves in the node table. Ignoring EncapsulatedKey message.");
+                            }
                             self.shared_key = key.clone();
                             self.state = ManagerState::MemberOkay;
                             return Ok(vec![Response::SetSharedKey(key)]);
