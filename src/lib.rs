@@ -277,6 +277,15 @@ impl NodeManager {
         &self.node_id
     }
     /// The current shared key
+    ///
+    /// During rekeying, the shared key returned by this function might be
+    /// updated before you should send out a message with that shared key.
+    /// Or to be more specific, always use a shared key from before calling
+    /// [`handle_msg`], and then update that key accordingly as you go through
+    /// the responses, respecting `SetSharedKey`. Never use the output of this
+    /// function *after* you have called [`handle_msg`].
+    ///
+    /// [`handle_msg`]: Self::handle_msg
     pub fn shared_key(&self) -> &[u8] {
         &self.shared_key
     }

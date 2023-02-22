@@ -118,8 +118,12 @@ fn handle_msg_buf(
     for (node_i, node) in nodes.iter_mut().enumerate() {
         for (net_id, msgs) in buf {
             for msg in msgs {
+                // Cache the shared key as it might change during the message
+                // handling. If we then process the responses, we should use the
+                // original key (or the one set by a SetSharedKey response).
+                let mut node_shared_key = node.shared_key().to_vec();
                 if let Some(net_id) = net_id {
-                    if net_id != node.shared_key() {
+                    if net_id != &node_shared_key {
                         // Mismatch, this node will not receive this message :)
                         continue;
                     }
@@ -132,10 +136,11 @@ fn handle_msg_buf(
                 for resp in resps {
                     match resp {
                         Response::SetSharedKey(k) => {
+                            node_shared_key = k.clone();
                             new_shared_keys[node_i] = Some(k);
                         }
                         Response::Message(msg, for_members_network) => {
-                            let net_id = for_members_network.then(|| node.shared_key().to_vec());
+                            let net_id = for_members_network.then(|| node_shared_key.to_vec());
                             let list = new_buf.entry(net_id).or_default();
                             list.push(msg);
                         }
