@@ -719,6 +719,7 @@ impl NodeManager {
                         let node_to_remove = NodeId::from_data(&node_to_remove);
                         self.nodes.remove(&node_to_remove);
                         // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
+                        self.state = ManagerState::WaitingForRekeying;
                         if self.is_node_that_does_rekeying(timestamp) {
                             return Ok(vec![self.make_rekeying_msg(timestamp)?]);
                         }
