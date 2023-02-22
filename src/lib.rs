@@ -203,6 +203,10 @@ impl NodeId {
     }
 }
 
+fn fmt_hex_arr(arr: &[u8]) -> String {
+    arr.iter().map(|v| format!("{v:02x}")).collect()
+}
+
 /// A function that converts a DER encoded RSA key into a NodeId
 pub type NodeIdGenerator = fn(&[u8]) -> Result<Vec<u8>, ()>;
 
@@ -377,9 +381,6 @@ impl NodeManager {
             log::info!("No qualifying leader node found, at least there should be us!");
             return true;
         };
-        fn fmt_hex_arr(arr: &[u8]) -> String {
-            arr.iter().map(|v| format!("{v:02x}")).collect()
-        }
         log::debug!(
             "Min: {:?}, us: {:?}",
             fmt_hex_arr(&(min_node_qualifying.0).0),
@@ -402,6 +403,18 @@ impl NodeManager {
         let mut buf = [0; SHARED_KEY_LEN];
         getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
         self.shared_key = buf.to_vec();
+        let mut nodes_str = String::new();
+        for (nd, nd_entry) in self.nodes.iter() {
+            use std::fmt::Write;
+            write!(
+                nodes_str,
+                "({}; {:?}), ",
+                fmt_hex_arr(&nd.0),
+                nd_entry.status
+            )
+            .unwrap();
+        }
+        log::debug!("rekeying for node table = {nodes_str}");
         let mut keys = self
             .nodes
             .iter()
