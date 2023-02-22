@@ -204,7 +204,7 @@ impl NodeId {
 }
 
 fn fmt_hex_arr(arr: &[u8]) -> String {
-    arr.iter().map(|v| format!("{v:02x}")).collect()
+    arr[..3].iter().map(|v| format!("{v:02x}")).collect()
 }
 
 /// A function that converts a DER encoded RSA key into a NodeId
@@ -382,7 +382,7 @@ impl NodeManager {
             return true;
         };
         log::debug!(
-            "Min: {:?}, us: {:?}",
+            "Min: {}, us: {}",
             fmt_hex_arr(&(min_node_qualifying.0).0),
             fmt_hex_arr(&self.node_id)
         );
@@ -403,18 +403,6 @@ impl NodeManager {
         let mut buf = [0; SHARED_KEY_LEN];
         getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
         self.shared_key = buf.to_vec();
-        let mut nodes_str = String::new();
-        for (nd, nd_entry) in self.nodes.iter() {
-            use std::fmt::Write;
-            write!(
-                nodes_str,
-                "({}; {:?}), ",
-                fmt_hex_arr(&nd.0),
-                nd_entry.status
-            )
-            .unwrap();
-        }
-        log::debug!("rekeying for node table = {nodes_str}");
         let mut keys = self
             .nodes
             .iter()
@@ -431,6 +419,8 @@ impl NodeManager {
             })
             .collect::<Result<Vec<(Vec<_>, _)>, Box<dyn Error>>>()?;
         keys.sort_by_key(|(id, _enc_key)| id.to_owned());
+        let table_str = node_table::table_str(&self.nodes);
+        log::debug!("rekeying for n={} node table = {}", keys.len(), table_str);
         let msg =
             Operation::EncapsulatedKeys(keys).sign(timestamp, &self.node_id, &self.key_pair)?;
         Ok(vec![

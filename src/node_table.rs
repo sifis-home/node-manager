@@ -66,3 +66,18 @@ pub fn serialize(this: &NodeTable) -> Result<Vec<u8>, Box<dyn Error>> {
         .collect::<Vec<_>>();
     Ok(bincode::serialize(&nodes_vec)?)
 }
+
+pub(crate) fn table_str(nodes: &NodeTable) -> String {
+    let mut res = String::new();
+    for (nd, nd_entry) in nodes.iter() {
+        use std::fmt::Write;
+        write!(
+            res,
+            "({}; {:?}), ",
+            super::fmt_hex_arr(&nd.0),
+            nd_entry.status
+        )
+        .unwrap();
+    }
+    res
+}
