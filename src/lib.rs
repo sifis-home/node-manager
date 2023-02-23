@@ -630,6 +630,11 @@ impl NodeManager {
                             } else {
                                 log::warn!("Couldn't find ourselves in the node table.");
                             }
+                            log::debug!(
+                                "Successfully joining as {}. nodes={}",
+                                fmt_hex_arr(&self.node_id),
+                                node_table::table_str(&self.nodes)
+                            );
                             self.shared_key = key.clone();
                             self.state = ManagerState::MemberOkay;
                             return Ok(vec![Response::SetSharedKey(key)]);
