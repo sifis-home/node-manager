@@ -550,7 +550,10 @@ impl NodeManager {
                     Entry::Occupied(_ocd) => {
                         // We still have this node in our table.
                         // This might be due to a bug
-                        log::info!("Node already in table. Ignoring AddByAdmin message.");
+                        log::info!(
+                            "Node {} already in table. Ignoring AddByAdmin message.",
+                            fmt_hex_arr(&node_id.0)
+                        );
                         return Ok(Vec::new());
                     }
                     Entry::Vacant(vcnt) => {
