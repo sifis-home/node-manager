@@ -349,10 +349,10 @@ impl NodeManager {
             // Look in the list of admin keys for the right one
             self.admin_keys
                 .iter()
-                .any(|(_der, key)| msg.digest_is_valid(&digest, key))
+                .any(|(_der, key)| msg.digest_is_valid(digest, key))
         } else {
             let Some(node_entry) = self.nodes.get(&peer_id) else { return false };
-            msg.digest_is_valid(&digest, &node_entry.public_key)
+            msg.digest_is_valid(digest, &node_entry.public_key)
         }
     }
     /// Adds the given der formatted key as an admin key
@@ -462,7 +462,7 @@ impl NodeManager {
         self.shared_key = Vec::new();
         // We aren't really waiting for a key here, but this is the closest...
         self.state = ManagerState::WaitingForKey;
-        return Ok(vec![Response::Message(msg, true)]);
+        Ok(vec![Response::Message(msg, true)])
     }
 
     /// Handles the message
@@ -765,7 +765,7 @@ impl NodeManager {
                         // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
                         self.state = ManagerState::WaitingForRekeying;
                         if self.is_node_that_does_rekeying(timestamp) {
-                            return Ok(self.make_rekeying(timestamp)?);
+                            return self.make_rekeying(timestamp);
                         }
                     }
                 }
@@ -811,7 +811,7 @@ impl NodeManager {
                 // Engage in rekeying
                 self.state = ManagerState::WaitingForRekeying;
                 if self.is_node_that_does_rekeying(timestamp) {
-                    return Ok(self.make_rekeying(timestamp)?);
+                    return self.make_rekeying(timestamp);
                 }
             }
             Operation::SelfRemove => {
@@ -824,7 +824,7 @@ impl NodeManager {
                 // Engage in rekeying
                 self.state = ManagerState::WaitingForRekeying;
                 if self.is_node_that_does_rekeying(timestamp) {
-                    return Ok(self.make_rekeying(timestamp)?);
+                    return self.make_rekeying(timestamp);
                 }
             }
             Operation::KeepAlive(_node_table_hash) => {
