@@ -373,7 +373,7 @@ impl NodeManager {
             .iter()
             .filter(|(_nd, entry)| {
                 entry.status == NodeStatus::Member
-                    && timestamp.saturating_sub(entry.last_seen_time) <= MAX_SEEN_TIME_FOR_RESPONSE
+                //&& timestamp.saturating_sub(entry.last_seen_time) <= MAX_SEEN_TIME_FOR_RESPONSE
             })
             .min_by_key(|&(id, _nd)| id);
         let Some(min_node_qualifying) = min_node_qualifying else {
