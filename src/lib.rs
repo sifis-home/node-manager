@@ -545,7 +545,13 @@ impl NodeManager {
                     return Ok(Vec::new());
                 };
                 let node_id = NodeId(node_id);
-                // Add node to table as waiting
+                // This needs to be read before we add the node as member,
+                // otherwise we might think that the new node is a possible
+                // candidate. We also can't add the node as waiting,
+                // because the creator of the EncapsulatedKey message won't
+                // read it.
+                let responds_lobby = self.is_node_that_responds_lobby(timestamp);
+                // Add node to table as member
                 match self.nodes.entry(node_id.clone()) {
                     Entry::Occupied(_ocd) => {
                         // We still have this node in our table.
@@ -560,14 +566,14 @@ impl NodeManager {
                         vcnt.insert(NodeEntry {
                             public_key: node_public_key.clone(),
                             public_key_der: node_public_key_der,
-                            status: NodeStatus::WaitingEntry,
+                            status: NodeStatus::Member,
                             last_seen_time: timestamp,
                         });
                     }
                 }
                 let mut rsps = Vec::new();
 
-                if self.is_node_that_responds_lobby(timestamp) {
+                if responds_lobby {
                     let Ok(encrypted_key) = node_public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
@@ -628,8 +634,13 @@ impl NodeManager {
                             // TODO check that the msg_digest corresponds to the entry in the node table
                             // This check would not bring much though for security.
                             self.nodes = node_table;
-                            if let Some(ne) = self.nodes.get_mut(&NodeId::from_data(&node_id)) {
-                                ne.status = NodeStatus::Member;
+                            if let Some(ne) = self.nodes.get(&NodeId::from_data(&node_id)) {
+                                if ne.status != NodeStatus::Member {
+                                    log::warn!(
+                                        "Not listed as member in table but as {:?}.",
+                                        ne.status
+                                    );
+                                }
                             } else {
                                 log::warn!("Couldn't find ourselves in the node table.");
                             }
