@@ -628,7 +628,7 @@ impl NodeManager {
                             if let Some(ne) = self.nodes.get_mut(&NodeId::from_data(&node_id)) {
                                 ne.status = NodeStatus::Member;
                             } else {
-                                log::info!("Couldn't find ourselves in the node table. Ignoring EncapsulatedKey message.");
+                                log::warn!("Couldn't find ourselves in the node table.");
                             }
                             self.shared_key = key.clone();
                             self.state = ManagerState::MemberOkay;
