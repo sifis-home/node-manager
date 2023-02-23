@@ -609,7 +609,7 @@ impl NodeManager {
                 if node_id == self.node_id {
                     // Check if we actually *want* to (re)join, as in, if we've
                     // requested that before
-                    if self.state == ManagerState::WaitingForKey {
+                    if self.state != ManagerState::WaitingForKey {
                         log::info!("Didn't expect EncapsulatedKey message. Ignoring it.");
                         return Ok(Vec::new());
                     }
