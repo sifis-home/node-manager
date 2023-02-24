@@ -310,14 +310,17 @@ fn node_manager_test_self_remove() {
     log::info!("######## Nodes joined ########");
 
     // Now issue a rekeying command
+    ts += 100;
     let msg_self_remove = sim.nodes[4].self_remove(ts).unwrap();
     let [Response::Message(msg_self_remove, true)] = &msg_self_remove[..] else { panic!("wrong format!") };
     sim.msg_buf
         .entry(Some(TEST_SHARED_KEY.to_vec()))
         .or_default()
         .push(msg_self_remove.clone());
+    ts += 100;
     let new_keys = sim.msg_buf_round(ts);
     assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+    ts += 100;
     let new_keys = sim.msg_buf_round(ts);
     assert_eq!(
         new_keys.iter().filter(|k| k.is_some()).count(),
