@@ -443,9 +443,9 @@ impl NodeManager {
             return Descision::No;
         }
         if rng() {
-            Descision::Yes
-        } else {
             Descision::No
+        } else {
+            Descision::Yes
         }
     }
 
