@@ -327,3 +327,56 @@ fn node_manager_test_self_remove() {
         sim.nodes.len() - 2 // minus one for the removed, minus one for the rekeying node
     );
 }
+
+#[test]
+fn node_manager_test_vote_remove() {
+    init_logger();
+
+    let nodes = vec![make_node_manager_key(
+        TEST_KEY_2,
+        Some(TEST_SHARED_KEY.to_vec()),
+    )];
+    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+
+    log::info!("######## Nodes generated ########");
+
+    let mut ts = 100_000;
+    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+        sim.handle_node_join(i + 1, ts, ts + 50);
+        ts += 100;
+    }
+
+    log::info!("######## Nodes joined ########");
+
+    // Now start a vote to kick out a specific node
+    ts += 100;
+    let node_to_kick_id = sim.nodes[4].node_id().to_owned();
+    let msg_vote = sim.nodes[3].start_vote(ts, &node_to_kick_id).unwrap();
+    let [Response::Message(msg_vote, true)] = &msg_vote[..] else { panic!("wrong format!") };
+
+    // One round to distribute the vote proposal
+    ts += 100;
+    sim.msg_buf
+        .entry(Some(TEST_SHARED_KEY.to_vec()))
+        .or_default()
+        .push(msg_vote.clone());
+    let new_keys = sim.msg_buf_round(ts);
+    assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
+
+    // One round to distribute the votes: now the rekeying starts
+    ts += 100;
+    sim.msg_buf
+        .entry(Some(TEST_SHARED_KEY.to_vec()))
+        .or_default()
+        .push(msg_vote.clone());
+    let new_keys = sim.msg_buf_round(ts);
+    assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+
+    // One round for the rekeying
+    ts += 100;
+    let new_keys = sim.msg_buf_round(ts);
+    assert_eq!(
+        new_keys.iter().filter(|k| k.is_some()).count(),
+        sim.nodes.len() - 2 // minus one for the removed, minus one for the rekeying node
+    );
+}
