@@ -812,6 +812,10 @@ impl NodeManager {
                     return Ok(Vec::new());
                 };
                 if let Some(desc) = opt_desc {
+                    log::debug!(
+                        "Descision was reached by {}: {desc:?}",
+                        fmt_hex_arr(&self.node_id)
+                    );
                     // Descision reached: remove the vote proposal
                     let vp = self.vote_proposal.take().unwrap();
                     if desc == Descision::Yes {
