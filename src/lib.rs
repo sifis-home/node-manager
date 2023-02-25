@@ -465,6 +465,49 @@ impl NodeManager {
         Ok(vec![Response::Message(msg, true)])
     }
 
+    /// Broadcasts a message to initiate a vote
+    ///
+    /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
+    /// the message.
+    pub fn start_vote(
+        &mut self,
+        timestamp: u64,
+        to_remove_id: &[u8],
+    ) -> Result<Vec<Response>, Box<dyn Error>> {
+        let operation = VoteOperation::Remove(to_remove_id.to_owned());
+        let op = Operation::VoteProposal(operation.clone());
+        let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+            log::info!("Couldn't sign vote proposal msg.");
+            return Ok(Vec::new());
+        };
+
+        let mut votes: HashMap<_, _> = self
+            .nodes
+            .iter()
+            .filter_map(|(node_id, node_entry)| {
+                if node_entry.status != NodeStatus::Member {
+                    return None;
+                }
+                Some((node_id.0.clone(), VoteEntry::NotVoted))
+            })
+            .collect();
+        votes.insert(self.node_id.clone(), VoteEntry::Voted(Descision::Yes));
+
+        let hash = msg.digest();
+
+        // Create and store the proposal
+        let proposal = VoteProposal {
+            initiator_id: msg.signer_id.clone(),
+            initiation_time: timestamp,
+            hash,
+            votes,
+            operation,
+        };
+        self.vote_proposal = Some(proposal);
+
+        Ok(vec![Response::Message(msg, true)])
+    }
+
     /// Handles the message
     ///
     /// Same as [`handle_msg_ts`](Self::handle_msg_ts), but the timestamp is set
