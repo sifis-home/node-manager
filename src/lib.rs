@@ -762,7 +762,10 @@ impl NodeManager {
                 } else {
                     // TODO, due to ordering noise, it is possible that votes arrive before proposals.
                     // Therefore, we should instead keep a buffer of these votes and only discard if we have reason to.
-                    log::info!("Got a vote while no vote proposal was active. Ignoring vote.");
+                    log::info!(
+                        "Got a vote from {} while no vote proposal was active. Ignoring vote.",
+                        fmt_hex_arr(&msg.signer_id)
+                    );
                     return Ok(Vec::new());
                 };
                 if let Some(desc) = opt_desc {
