@@ -149,6 +149,20 @@ impl Operation {
         msg.signature = signer_key.sign(padding_scheme_sign(), &msg_digest)?;
         Ok(msg)
     }
+    pub fn kind_str(&self) -> &'static str {
+        use Operation::*;
+        match self {
+            AddByAdmin(..) => "AddByAdmin",
+            SelfRejoin => "SelfRejoin",
+            EncapsulatedKey(..) => "EncapsulatedKey",
+            VoteProposal(..) => "VoteProposal",
+            EncapsulatedKeys(..) => "EncapsulatedKeys",
+            Vote(..) => "Vote",
+            SelfPause => "SelfPause",
+            SelfRemove => "SelfRemove",
+            KeepAlive(..) => "KeepAlive",
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
