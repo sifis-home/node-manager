@@ -428,13 +428,17 @@ impl NodeManager {
             Response::SetSharedKey(self.shared_key.clone()),
         ])
     }
-    fn decide_vote(&self, op: &VoteOperation) -> Descision {
+    fn decide_vote(&self, op: &VoteOperation, timestamp: u64) -> Descision {
         // Default: accept, but deny in 1/8 of cases
         // TODO: implement a trust based scheme here, instead of just random choice.
-        fn rng() -> bool {
-            let mut arr = [0; 1];
-            getrandom::getrandom(&mut arr).unwrap();
-            arr[0] & 0b111 == 0
+        fn rng(this: &NodeManager, timestamp: u64) -> bool {
+            let tbl_hash = this.table_hash();
+            let mut hasher = Sha256::new();
+            hasher.update(tbl_hash);
+            hasher.update(&this.node_id);
+            hasher.update(timestamp.to_be_bytes());
+            let hash = hasher.finalize().to_vec();
+            hash[0] & 0b111 == 0
         }
         let VoteOperation::Remove(id) = op;
         if id == &self.node_id {
@@ -442,7 +446,7 @@ impl NodeManager {
             // argue against it.
             return Descision::No;
         }
-        if rng() {
+        if rng(self, timestamp) {
             Descision::No
         } else {
             Descision::Yes
@@ -743,7 +747,7 @@ impl NodeManager {
                 votes.insert(msg.signer_id.clone(), VoteEntry::Voted(Descision::Yes));
 
                 // Determine our own descision on the proposal
-                let desc = self.decide_vote(&operation);
+                let desc = self.decide_vote(&operation, timestamp);
                 votes.insert(self.node_id.clone(), VoteEntry::Voted(desc));
                 let op = Operation::Vote(prop_hash.clone(), desc);
 
