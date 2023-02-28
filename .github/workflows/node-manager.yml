@@ -438,60 +438,6 @@ jobs:
       run: |
         cargo install cargo-careful
 
-  cache-level-macos:
-
-    needs: [build, docs]
-
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Install Rust nightly
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        toolchain: nightly
-        components: rust-src
-
-    - name: Cache produced data
-      id: cache-data
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.toml') }}
-
-  cache-level-windows:
-
-    needs: [build, docs]
-
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Install Rust nightly
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        toolchain: nightly
-        components: rust-src
-
-    - name: Cache produced data
-      id: cache-data
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.toml') }}
-
 ################################## UNSAFE CHECKS LEVEL #########################
 
   valgrind-ubuntu:
