@@ -469,6 +469,38 @@ impl NodeManager {
         Ok(vec![Response::Message(msg, true)])
     }
 
+    /// Broadcasts a self pause message
+    ///
+    /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
+    /// the message.
+    pub fn self_pause(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+        let op = Operation::SelfPause;
+        let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+            log::info!("Couldn't sign self pause msg. Not creating self pause msg.");
+            return Ok(Vec::new());
+        };
+        self.shared_key = Vec::new();
+        // We aren't really waiting for a key here, but this is the closest...
+        self.state = ManagerState::WaitingForKey;
+        Ok(vec![Response::Message(msg, true)])
+    }
+
+    /// Broadcasts a self rejoin message
+    ///
+    /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
+    /// the message.
+    pub fn self_rejoin(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+        let op = Operation::SelfRejoin;
+        let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+            log::info!("Couldn't sign self rejoin msg. Not creating self rejoin msg.");
+            return Ok(Vec::new());
+        };
+        self.shared_key = Vec::new();
+        // We aren't really waiting for a key here, but this is the closest...
+        self.state = ManagerState::WaitingForKey;
+        Ok(vec![Response::Message(msg, false)])
+    }
+
     /// Broadcasts a message to initiate a vote
     ///
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
