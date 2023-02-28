@@ -309,7 +309,7 @@ fn node_manager_test_self_remove() {
 
     log::info!("######## Nodes joined ########");
 
-    // Now issue a rekeying command
+    // Now issue a self removal command
     ts += 100;
     let msg_self_remove = sim.nodes[4].self_remove(ts).unwrap();
     let [Response::Message(msg_self_remove, true)] = &msg_self_remove[..] else { panic!("wrong format!") };
