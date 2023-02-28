@@ -7,7 +7,6 @@ on:
     paths:
       - 'src/**'
       - 'crates/**'
-      - 'fuzz/**'
       - '.github/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -17,7 +16,6 @@ on:
     paths:
       - 'src/**'
       - 'crates/**'
-      - 'fuzz/**'
       - '.github/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -538,7 +536,7 @@ jobs:
       env:
         GRCOV_LINK: https://github.com/mozilla/grcov/releases/download
         GRCOV_VERSION: v0.8.13
-        GRCOV_BINARY: grcov-x86_64-pc-windows-msvc.zip 
+        GRCOV_BINARY: grcov-x86_64-pc-windows-msvc.zip
       run: |
         curl -LO "$Env:GRCOV_LINK/$Env:GRCOV_VERSION/$Env:GRCOV_BINARY"
         7z e -y "$Env:GRCOV_BINARY" -o"${env:USERPROFILE}\.cargo\bin"
@@ -1168,55 +1166,3 @@ jobs:
       run: |
         cargo +nightly careful test
         # cargo +nightly careful run
-
-################################## FUZZY LEVEL #################################
-
-  fuzzy-ubuntu:
-
-    needs: [valgrind-ubuntu, careful-ubuntu, address-sanitizer-ubuntu]
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Install Rust nightly
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        toolchain: nightly
-
-    - name: Install cargo-fuzz
-      env:
-        FUZZ_LINK: https://github.com/rust-fuzz/cargo-fuzz/releases/download
-        FUZZ_VERSION: 0.11.2
-      run: |
-        curl -L "$FUZZ_LINK/$FUZZ_VERSION/cargo-fuzz-$FUZZ_VERSION-x86_64-unknown-linux-musl.tar.gz" |
-        tar xz -C $HOME/.cargo/bin
-
-    - name: Run cargo-fuzz
-      run: cargo fuzz build --target x86_64-unknown-linux-gnu
-
-  fuzzy-macos:
-
-    needs: [careful-macos, address-sanitizer-macos]
-
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Install Rust nightly
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        toolchain: nightly
-
-    - name: Install cargo-fuzz
-      env:
-        FUZZ_LINK: https://github.com/rust-fuzz/cargo-fuzz/releases/download
-        FUZZ_VERSION: 0.11.2
-      run: |
-        curl -L "$FUZZ_LINK/$FUZZ_VERSION/cargo-fuzz-$FUZZ_VERSION-x86_64-apple-darwin.tar.gz" |
-        tar xz -C $HOME/.cargo/bin
-
-    - name: Run cargo-fuzz
-      run: cargo fuzz build
