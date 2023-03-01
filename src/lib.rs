@@ -697,7 +697,7 @@ impl NodeManager {
                     let node_table_bytes = node_table::serialize(&self.nodes)?;
                     let op = Operation::EncapsulatedKey(
                         encrypted_key,
-                        self.node_id.clone(),
+                        msg.signer_id.clone(),
                         node_table_bytes,
                     );
                     let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
