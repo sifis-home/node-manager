@@ -689,6 +689,11 @@ impl NodeManager {
                     log::info!("Couldn't find node in table. Ignoring SelfRejoin message.");
                     return Ok(Vec::new());
                 };
+                if node_entry.status != NodeStatus::Paused {
+                    log::info!("Node wasn't actually paused but instead {:?}. Ignoring SelfRejoin message.", node_entry.status);
+                    return Ok(Vec::new());
+                }
+                node_entry.status = NodeStatus::Member;
                 if responds_lobby {
                     let Ok(encrypted_key) = node_entry.public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
