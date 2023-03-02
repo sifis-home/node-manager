@@ -686,7 +686,7 @@ impl NodeManager {
                 let responds_lobby = self.is_node_that_responds_lobby(timestamp);
                 let node_id = NodeId::from_data(&msg.signer_id);
                 let Some(node_entry) = self.nodes.get_mut(&node_id) else {
-                    log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
+                    log::info!("Couldn't find node in table. Ignoring SelfRejoin message.");
                     return Ok(Vec::new());
                 };
                 if responds_lobby {
