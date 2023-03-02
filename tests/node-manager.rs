@@ -404,6 +404,70 @@ fn node_manager_test_self_pause_rejoin() {
 }
 
 #[test]
+fn node_manager_test_self_pause_rejoin_everyone() {
+    init_logger();
+
+    let nodes = vec![make_node_manager_key(
+        TEST_KEY_2,
+        Some(TEST_SHARED_KEY.to_vec()),
+    )];
+    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+
+    log::info!("######## Nodes generated ########");
+
+    let mut ts = 100_000;
+    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+        sim.handle_node_join(i + 1, ts, ts + 50);
+        ts += 100;
+    }
+
+    log::info!("######## Nodes joined ########");
+
+    for rejoin_id in 0..sim.nodes.len() {
+        assert_eq!(sim.count_shared_keys(), 1);
+        let shared_key = sim.nodes[0].shared_key().to_vec();
+
+        // Issue a self pause command
+        ts += 100;
+        let msg_self_pause = sim.nodes[rejoin_id].self_pause(ts).unwrap();
+        let [Response::Message(msg_self_pause, true)] = &msg_self_pause[..] else { panic!("wrong format!") };
+        sim.msg_buf
+            .entry(Some(shared_key))
+            .or_default()
+            .push(msg_self_pause.clone());
+        ts += 100;
+        let new_keys = sim.msg_buf_round(ts);
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+        ts += 100;
+        let new_keys = sim.msg_buf_round(ts);
+        assert_eq!(
+            new_keys.iter().filter(|k| k.is_some()).count(),
+            sim.nodes.len() - 2 // minus one for the removed, minus one for the rekeying node
+        );
+        assert_eq!(sim.count_shared_keys(), 2);
+
+        log::info!("######## Node i={rejoin_id} removed ########");
+
+        // Issue a self rejoin command
+        ts += 100;
+        let msg_self_rejoin = sim.nodes[rejoin_id].self_rejoin(ts).unwrap();
+        let [Response::Message(msg_self_rejoin, false)] = &msg_self_rejoin[..] else { panic!("wrong format!") };
+        sim.msg_buf
+            .entry(None)
+            .or_default()
+            .push(msg_self_rejoin.clone());
+        ts += 100;
+        let new_keys = sim.msg_buf_round(ts);
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
+        ts += 100;
+        let new_keys = sim.msg_buf_round(ts);
+        assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+        assert_eq!(sim.count_shared_keys(), 1);
+        log::info!("######## Node i={rejoin_id} rejoined ########");
+    }
+}
+
+#[test]
 fn node_manager_test_vote_remove() {
     init_logger();
 
