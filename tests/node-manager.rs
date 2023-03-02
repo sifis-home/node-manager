@@ -2,7 +2,7 @@ use node_manager::admin::AdminNode;
 use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // More can e.g. be generated via:
 // openssl genrsa -out tests/test_keyN.pem 2048
@@ -274,6 +274,14 @@ impl NetworkSimulator {
         );
         assert_eq!(self.nodes[node_idx].shared_key(), TEST_SHARED_KEY.to_vec());
     }
+    fn count_shared_keys(&self) -> usize {
+        let keys = self
+            .nodes
+            .iter()
+            .map(|nd| nd.shared_key())
+            .collect::<HashSet<_>>();
+        keys.len()
+    }
 }
 
 #[test]
@@ -292,6 +300,7 @@ fn node_manager_test_joining_20() {
         let ts = 100_000 + i as u64 * 100;
         sim.handle_node_join(i + 1, ts, ts + 50);
     }
+    assert_eq!(sim.count_shared_keys(), 1);
 }
 
 #[test]
@@ -350,6 +359,7 @@ fn node_manager_test_self_pause_rejoin() {
         sim.handle_node_join(i + 1, ts, ts + 50);
         ts += 100;
     }
+    assert_eq!(sim.count_shared_keys(), 1);
 
     log::info!("######## Nodes joined ########");
 
@@ -372,6 +382,7 @@ fn node_manager_test_self_pause_rejoin() {
         new_keys.iter().filter(|k| k.is_some()).count(),
         sim.nodes.len() - 2 // minus one for the removed, minus one for the rekeying node
     );
+    assert_eq!(sim.count_shared_keys(), 2);
 
     log::info!("######## Node was removed ########");
 
@@ -389,6 +400,7 @@ fn node_manager_test_self_pause_rejoin() {
     ts += 100;
     let new_keys = sim.msg_buf_round(ts);
     assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
+    assert_eq!(sim.count_shared_keys(), 1);
 }
 
 #[test]
