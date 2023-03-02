@@ -2,6 +2,7 @@
 
 pub use crate::builder::NodeManagerBuilder;
 pub use crate::node_table::{NodeEntry, NodeStatus};
+use core::fmt::{self, Debug};
 use rsa::padding::PaddingScheme;
 use rsa::pkcs8::{DecodePublicKey, EncodePublicKey};
 use rsa::rand_core::OsRng;
@@ -219,6 +220,13 @@ impl NodeId {
 
 fn fmt_hex_arr(arr: &[u8]) -> String {
     arr[..3].iter().map(|v| format!("{v:02x}")).collect()
+}
+
+impl Debug for NodeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", fmt_hex_arr(&self.0))?;
+        Ok(())
+    }
 }
 
 /// A function that converts a DER encoded RSA key into a NodeId
