@@ -942,7 +942,7 @@ impl NodeManager {
                 // Update last seen value in node's entry
                 let peer_id = NodeId::from_data(&msg.signer_id);
                 let Some(nd) = self.nodes.get_mut(&peer_id) else {
-                    log::info!("Couldn't find node that pauses membership. Ignoring SelfPause");
+                    log::info!("Couldn't find node that pauses membership. Ignoring KeepAlive");
                     return Ok(Vec::new());
                 };
                 nd.last_seen_time = timestamp;
