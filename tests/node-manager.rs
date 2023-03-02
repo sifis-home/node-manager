@@ -111,8 +111,11 @@ fn handle_msg_buf(
     let mut new_buf = MsgBuf::new();
     let mut new_shared_keys = vec![None; nodes.len()];
     let msgs_count: usize = buf.iter().map(|(_, msgs)| msgs.len()).sum();
-    let msgs_names =
-        buf.iter().map(|(_, msgs)| msgs.iter().map(|msg| msg.operation.kind_str())).flatten().collect::<Vec<&str>>();
+    let msgs_names = buf
+        .iter()
+        .map(|(_, msgs)| msgs.iter().map(|msg| msg.operation.kind_str()))
+        .flatten()
+        .collect::<Vec<&str>>();
     log::info!(
         "Distributing {msgs_count} message{s} to nodes {msgs_names:?}...",
         s = if msgs_count > 1 { "s" } else { "" },
