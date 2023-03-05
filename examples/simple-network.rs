@@ -335,10 +335,14 @@ fn run_client(opt: Opt, key_pem: &str) {
                         let msg_self_rejoin = node.self_rejoin(ts).unwrap();
                         resps.extend_from_slice(&msg_self_rejoin);
                     }
+                    "table" => {
+                        // Table
+                        println!("{}", node.table_str());
+                    }
                     // TODO add voting command
                     _ => {
                         println!("error: Unrecognized command '{line}'");
-                        println!("Commands: join pause rejoin");
+                        println!("Commands: join pause rejoin table");
                     }
                 }
             }

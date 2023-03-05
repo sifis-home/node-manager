@@ -385,6 +385,10 @@ impl NodeManager {
             .push((admin_key_der.to_vec(), admin_public_key));
         Ok(())
     }
+    /// Returns a user-displayable string listing the nodes that are member of the node table
+    pub fn table_str(&self) -> String {
+        node_table::table_str(&self.nodes)
+    }
     /// Whether the given node should respond to the specified question on the lobby network
     fn is_node_that_responds_lobby(&self, timestamp: u64) -> bool {
         if self.shared_key.is_empty() {
