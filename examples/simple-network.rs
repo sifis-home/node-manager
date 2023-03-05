@@ -142,6 +142,8 @@ impl PckRdr {
 
 const READ_TIMEOUT: Duration = Duration::from_millis(50);
 
+const LOOP_SLEEP_AMOUNT: Duration = Duration::from_millis(50);
+
 fn handle_client(
     recv: Receiver<Arc<[u8]>>,
     sender: Sender<(u32, Packet)>,
@@ -170,6 +172,8 @@ fn handle_client(
                     break;
                 }
             }
+            // Sleep a little
+            std::thread::sleep(LOOP_SLEEP_AMOUNT);
         }
     });
 }
@@ -226,7 +230,7 @@ fn run_server(opt: Opt, _key_pem: &str) {
             }
         }
         // Sleep a little
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(LOOP_SLEEP_AMOUNT);
     }
 }
 
@@ -371,5 +375,7 @@ fn run_client(opt: Opt, key_pem: &str) {
                 }
             }
         }
+        // Sleep a little
+        std::thread::sleep(LOOP_SLEEP_AMOUNT);
     }
 }
