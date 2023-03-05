@@ -341,7 +341,7 @@ fn run_client(opt: Opt, key_pem: &str) {
                     }
                     "table" => {
                         // Table
-                        println!("{}", node.table_str());
+                        println!("Node table: {}", node.table_str());
                     }
                     // TODO add voting command
                     _ => {
