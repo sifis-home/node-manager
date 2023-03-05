@@ -223,7 +223,7 @@ fn run_server(opt: Opt, _key_pem: &str) {
                     if sending_res.is_err() {
                         // The client has disconnected.
                         // Remove it from the list.
-                        client = None;
+                        *client = None;
                     }
                 }
             }
