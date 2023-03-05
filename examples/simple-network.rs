@@ -156,7 +156,12 @@ fn handle_client(
         loop {
             match recv.try_recv() {
                 Ok(buf) => {
-                    stream.write_all(&buf).unwrap();
+                    match stream.write_all(&buf) {
+                        Ok(_) => (),
+                        // Disconnected, end the loop
+                        Err(e) if e.kind() == ErrorKind::BrokenPipe => break,
+                        Err(e) => panic!("I/O error: {e:?}"),
+                    }
                 }
                 Err(TryRecvError::Disconnected) => {
                     // The server is terminating. Close the connection.
