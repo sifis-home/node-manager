@@ -189,6 +189,7 @@ fn run_server(opt: Opt, _key_pem: &str) {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
+                log::debug!("New connection from {}", stream.peer_addr().unwrap());
                 let (msgs_in_net_snd, msgs_in_net_rcv) = channel();
                 handle_client(
                     msgs_in_net_rcv,
