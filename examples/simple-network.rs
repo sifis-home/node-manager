@@ -331,22 +331,22 @@ fn run_client(opt: Opt, key_pem: &str) {
         match stdin_input.try_recv() {
             Ok(line) => {
                 match line.to_ascii_lowercase().as_str() {
-                    "join" => {
+                    "join" | "j" => {
                         // Join
                         let msg_add = admin.sign_addition(&node.public_key_der(), ts).unwrap();
                         resps.extend_from_slice(&[Response::Message(msg_add, false)]);
                     }
-                    "pause" => {
+                    "pause" | "p" => {
                         // Self Pause
                         let msg_self_pause = node.self_pause(ts).unwrap();
                         resps.extend_from_slice(&msg_self_pause);
                     }
-                    "rejoin" => {
+                    "rejoin" | "r" => {
                         // Rejoin
                         let msg_self_rejoin = node.self_rejoin(ts).unwrap();
                         resps.extend_from_slice(&msg_self_rejoin);
                     }
-                    "table" => {
+                    "table" | "t" => {
                         // Table
                         println!("Node table: {}", node.table_str());
                     }
