@@ -215,9 +215,16 @@ fn run_server(opt: Opt, _key_pem: &str) {
                 buf_with_len.extend_from_slice(&buf);
                 let msg_to_send: Arc<[u8]> = buf_with_len.into();
                 for client in client_list.iter_mut() {
-                    let Some((msgs_in_net_snd,)) = client else { continue };
-                    // TODO handle the eror below by setting the client to None (e.g. if it disconnected)
-                    msgs_in_net_snd.send(msg_to_send.clone()).unwrap();
+                    let sending_res = if let Some((msgs_in_net_snd,)) = client {
+                        msgs_in_net_snd.send(msg_to_send.clone())
+                    } else {
+                        Ok(())
+                    };
+                    if sending_res.is_err() {
+                        // The client has disconnected.
+                        // Remove it from the list.
+                        client = None;
+                    }
                 }
             }
             Err(TryRecvError::Disconnected) => {
