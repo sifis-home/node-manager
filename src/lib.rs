@@ -273,7 +273,8 @@ const MAX_MSG_AGE: u64 = 1_000;
 // TODO: make this a multiple of a future keep alive interval
 const MAX_SEEN_TIME_FOR_RESPONSE: u64 = 15_000;
 
-const SHARED_KEY_LEN: usize = 32;
+/// The length of an expected shared key
+pub const SHARED_KEY_LEN: usize = 32;
 
 pub struct NodeManager {
     key_pair: RsaPrivateKey,
