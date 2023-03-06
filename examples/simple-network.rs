@@ -1,4 +1,4 @@
-use node_manager::{self, NodeManager, NodeManagerBuilder, Response};
+use node_manager::{self, NodeId, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -374,6 +374,7 @@ fn run_client(opt: Opt, key_pem: &str) {
                     }
                     "table" | "t" => {
                         // Table
+                        println!("Own ID: {:?}", NodeId::from_data(&node.node_id()));
                         println!("Node table: {}", node.table_str());
                     }
                     line if line.starts_with("start-vote ") => {
