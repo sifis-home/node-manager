@@ -652,7 +652,7 @@ impl NodeManager {
             false
         };
         if !key_for_us && !self.digest_is_valid_for_msg(&msg_digest, &msg) {
-            log::info!("Ignoring message that had an invalid signature.");
+            log::info!("Ignoring message that had an invalid signature or unknown signer.");
             return Ok(Vec::new());
         }
         if !matches!(msg.operation, Operation::AddByAdmin(..))
