@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables)]
+#![allow(dead_code)]
 
 pub use crate::builder::NodeManagerBuilder;
 pub use crate::node_table::{NodeEntry, NodeStatus};
@@ -401,7 +401,7 @@ impl NodeManager {
         node_table::table_str(&self.nodes)
     }
     /// Whether the given node should respond to the specified question on the lobby network
-    fn is_node_that_responds_lobby(&self, timestamp: u64) -> bool {
+    fn is_node_that_responds_lobby(&self, _timestamp: u64) -> bool {
         if self.shared_key.is_empty() {
             // We don't have a shared key ourselves yet
             return false;
