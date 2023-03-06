@@ -212,8 +212,9 @@ fn run_server(opt: Opt, _key_pem: &str) {
             Ok((_from_id, pck)) => {
                 // Send the packet to all the client threads
                 log::debug!(
-                    "Sending packet with data len {} to clients (lobby={})",
+                    "Sending packet with data len {} to {} clients (lobby={})",
                     pck.data.len(),
+                    client_list.iter().filter(|cl| cl.is_some()).count(),
                     pck.network.is_none()
                 );
                 let buf = bincode::serialize(&pck).unwrap();
