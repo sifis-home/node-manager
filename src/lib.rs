@@ -511,6 +511,12 @@ impl NodeManager {
             return Ok(Vec::new());
         };
         self.shared_key = Vec::new();
+
+        // Not really needed, but we still do it
+        if let Some(nd) = self.nodes.get_mut(&NodeId::from_data(&self.node_id)) {
+            nd.status = NodeStatus::Paused;
+        }
+
         // We aren't really waiting for a key here, but this is the closest...
         self.state = ManagerState::WaitingForKey;
         Ok(vec![Response::Message(msg, true)])
