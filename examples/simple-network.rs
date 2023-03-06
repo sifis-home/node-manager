@@ -365,7 +365,6 @@ fn run_client(opt: Opt, key_pem: &str) {
                         // Self Pause
                         let msg_self_pause = node.self_pause(ts).unwrap();
                         resps.extend_from_slice(&msg_self_pause);
-                        node_shared_key.clear();
                     }
                     "rejoin" | "r" => {
                         // Rejoin
