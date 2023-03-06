@@ -219,7 +219,11 @@ impl NodeId {
 }
 
 fn fmt_hex_arr(arr: &[u8]) -> String {
-    arr[..3].iter().map(|v| format!("{v:02x}")).collect()
+    if let Some(bytes) = arr.get(..3) {
+        bytes.iter().map(|v| format!("{v:02x}")).collect()
+    } else {
+        "<empty>".to_string()
+    }
 }
 
 impl Debug for NodeId {

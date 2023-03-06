@@ -372,9 +372,11 @@ fn run_client(opt: Opt, key_pem: &str) {
                         let msg_self_rejoin = node.self_rejoin(ts).unwrap();
                         resps.extend_from_slice(&msg_self_rejoin);
                     }
-                    "table" | "t" => {
-                        // Table
+                    "info" | "i" | "t" => {
+                        // Info
                         println!("Own ID: {:?}", NodeId::from_data(&node.node_id()));
+                        // TODO find a better way to print the hex array
+                        println!("Shared key: {:?}", NodeId::from_data(&node.shared_key()));
                         println!("Node table: {}", node.table_str());
                     }
                     line if line.starts_with("start-vote ") => {
@@ -396,7 +398,7 @@ fn run_client(opt: Opt, key_pem: &str) {
                     }
                     _ => {
                         println!("error: Unrecognized command '{line}'");
-                        println!("Commands: join pause rejoin table start-vote");
+                        println!("Commands: join pause rejoin info start-vote");
                     }
                 }
             }
