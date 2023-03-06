@@ -297,6 +297,25 @@ fn timestamp() -> u64 {
         .unwrap()
 }
 
+fn parse_hex(s: &str) -> Option<Vec<u8>> {
+    let mut res = Vec::new();
+    for byte_hex in s.as_bytes().chunks(2) {
+        let hex_digit = |byte| {
+            Some(match byte {
+                b'0'..=b'9' => byte - b'0',
+                b'a'..=b'f' => byte - b'a' + 10,
+                _ => return None,
+            })
+        };
+        if let (Some(hi), Some(lo)) = (hex_digit(byte_hex[0]), hex_digit(byte_hex[1])) {
+            res.push((hi << 4) | lo);
+        } else {
+            return None;
+        }
+    }
+    Some(res)
+}
+
 fn run_client(opt: Opt, key_pem: &str) {
     let listen_addr = opt.get_addr();
     let mut stream = TcpStream::connect(listen_addr).unwrap();
@@ -357,10 +376,26 @@ fn run_client(opt: Opt, key_pem: &str) {
                         // Table
                         println!("Node table: {}", node.table_str());
                     }
-                    // TODO add voting command
+                    line if line.starts_with("start-vote ") => {
+                        let id_str = line.split(' ').nth(1).unwrap();
+                        let partial_id = parse_hex(&id_str);
+                        if let Some(partial_id) = partial_id {
+                            let id_opt = node.complete_node_id(&partial_id);
+                            if let Some(id) = id_opt {
+                                let msgs_vote = node.start_vote(ts, &id).unwrap();
+                                resps.extend_from_slice(&msgs_vote);
+                            } else {
+                                println!(
+                                    "error: couldn't find node id '{id_str}' or it was not unique"
+                                );
+                            }
+                        } else {
+                            println!("invalid hex array: '{id_str}'");
+                        }
+                    }
                     _ => {
                         println!("error: Unrecognized command '{line}'");
-                        println!("Commands: join pause rejoin table");
+                        println!("Commands: join pause rejoin table start-vote");
                     }
                 }
             }

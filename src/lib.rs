@@ -528,6 +528,26 @@ impl NodeManager {
         Ok(vec![Response::Message(msg, false)])
     }
 
+    /// Obtain a complete node id from a partial node id
+    ///
+    /// The function received a (potentially partial) node id as an input,
+    /// and searches the node table for the node with that id.
+    /// If no unique result exists, `None` is returned.
+    ///
+    /// The node id can be fed to [`start_vote`](Self::start_vote) for example.
+    pub fn complete_node_id(&mut self, needle: &[u8]) -> Option<Vec<u8>> {
+        let nodes = self
+            .nodes
+            .iter()
+            .filter(|(nd_id, _ne)| nd_id.0.starts_with(needle))
+            .collect::<Vec<_>>();
+        if let [(nd_id, _ne)] = nodes[..] {
+            Some(nd_id.0.to_owned())
+        } else {
+            None
+        }
+    }
+
     /// Broadcasts a message to initiate a vote
     ///
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast

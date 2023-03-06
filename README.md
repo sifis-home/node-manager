@@ -23,6 +23,7 @@ The following commands are accepted:
 - `pause`
 - `rejoin`
 - `table`
+- `start-vote`
 
 For example, you can run these commands in parallel shell sessions:
 
