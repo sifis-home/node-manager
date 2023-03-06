@@ -46,13 +46,20 @@ impl VoteProposal {
                 no_count += 1;
             }
         }
-        if yes_count * 2 >= possible_votes_count - 1 {
-            return Some(Descision::Yes);
+        let descision = if yes_count * 2 >= possible_votes_count - 1 {
+            Some(Descision::Yes)
+        } else if no_count * 2 >= possible_votes_count - 1 {
+            Some(Descision::No)
+        } else {
+            None
+        };
+        if descision.is_some() {
+            log::debug!(
+                "Descision results: yes={yes_count}, no={no_count}, eligible={}",
+                possible_votes_count
+            );
         }
-        if no_count * 2 >= possible_votes_count - 1 {
-            return Some(Descision::No);
-        }
-        None
+        descision
     }
 }
 
