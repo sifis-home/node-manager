@@ -330,7 +330,7 @@ fn run_client(opt: Opt, key_pem: &str) {
 
     let shared_key_opt = opt
         .start_member
-        .then(|| vec![0; node_manager::SHARED_KEY_LEN]);
+        .then(|| node_manager::gen_shared_key().to_vec());
 
     let mut node = make_node_manager_key(key_pem, shared_key_opt);
     node.add_admin_key_der(&admin.public_key_der()).unwrap();

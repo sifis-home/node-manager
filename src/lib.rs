@@ -287,6 +287,12 @@ const MAX_SEEN_TIME_FOR_RESPONSE: u64 = 15_000;
 /// The length of an expected shared key
 pub const SHARED_KEY_LEN: usize = 32;
 
+pub fn gen_shared_key() -> [u8; SHARED_KEY_LEN] {
+    let mut buf = [0; SHARED_KEY_LEN];
+    getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
+    buf
+}
+
 pub struct NodeManager {
     key_pair: RsaPrivateKey,
     node_id_generator: NodeIdGenerator,
@@ -438,9 +444,7 @@ impl NodeManager {
     /// Make the node yield a rekeying message, and update its internal key
     fn make_rekeying(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
         // Randomly generate a new key
-        let mut buf = [0; SHARED_KEY_LEN];
-        getrandom::getrandom(&mut buf).expect("getrandom call failed to fill key");
-        self.shared_key = buf.to_vec();
+        self.shared_key = gen_shared_key().to_vec();
         let mut keys = self
             .nodes
             .iter()
