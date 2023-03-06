@@ -625,6 +625,11 @@ impl NodeManager {
             log::info!("Ignoring message that we couldn't parse.");
             return Ok(Vec::new());
         };
+        log::debug!(
+            "Received message {} from {}",
+            msg.operation.kind_str(),
+            fmt_hex_arr(&msg.signer_id)
+        );
         let (cbs_lobby, cbs_members) = msg.operation.can_be_sent_to_lobby_or_members();
         let can_be_sent = if from_members_network {
             cbs_members
