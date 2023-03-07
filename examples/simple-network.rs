@@ -125,13 +125,13 @@ impl PckRdr {
             }
         }
     }
-    fn maybe_read_pck(&mut self, stream: &mut TcpStream) -> Option<Packet> {
+    fn maybe_read_pck<T: for<'a> Deserialize<'a>>(&mut self, stream: &mut TcpStream) -> Option<T> {
         if self.read_until_timeout(stream) {
             let len = u64::from_be_bytes(self.vec[..8].try_into().unwrap());
             self.reset();
             let mut buf = vec![0; len as usize];
             stream.read_exact(&mut buf).unwrap();
-            let pck: Packet = bincode::deserialize(&buf).unwrap();
+            let pck: T = bincode::deserialize(&buf).unwrap();
             //log::debug!("received packet with data length {}", pck.data.len());
             Some(pck)
         } else {
@@ -344,7 +344,7 @@ fn run_client(opt: Opt, key_pem: &str) {
     let mut node_shared_key = node.shared_key().to_vec();
     let mut resps = Vec::new();
     loop {
-        if let Some(pck) = pck_rdr.maybe_read_pck(&mut stream) {
+        if let Some(pck) = pck_rdr.maybe_read_pck::<Packet>(&mut stream) {
             if let Some(network) = &pck.network {
                 if network != &node_shared_key {
                     continue;
