@@ -398,6 +398,11 @@ impl NodeManager {
     /// Adds the given der formatted key as an admin key
     pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<(), Box<dyn Error>> {
         let admin_public_key = RsaPublicKey::from_public_key_der(admin_key_der)?;
+        if self.admin_keys.iter().any(|d| d.0 == admin_key_der) {
+            // admin key already exists
+            return Ok(());
+        }
+
         self.admin_keys
             .push((admin_key_der.to_vec(), admin_public_key));
         Ok(())

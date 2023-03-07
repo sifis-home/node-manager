@@ -1,4 +1,4 @@
-use node_manager::{self, NodeId, NodeManager, NodeManagerBuilder, Response};
+use node_manager::{self, Message, NodeId, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -90,6 +90,22 @@ struct Packet {
     data: Vec<u8>,
 }
 
+#[derive(Serialize, Deserialize)]
+enum PckForServer {
+    /// Request for signature
+    SignatureRequest(Vec<u8>),
+    /// Request for broadcasting
+    BroadcastRequest(Packet),
+}
+
+#[derive(Serialize, Deserialize)]
+enum PckForClient {
+    /// Addition message for admin
+    SignedAddByAdmin(Vec<u8>, Vec<u8>),
+    /// A broadcast packet
+    Packet(Packet),
+}
+
 struct PckRdr {
     first_unfilled: usize,
     vec: Vec<u8>,
@@ -146,7 +162,7 @@ const LOOP_SLEEP_AMOUNT: Duration = Duration::from_millis(50);
 
 fn handle_client(
     recv: Receiver<Arc<[u8]>>,
-    sender: Sender<(u32, Packet)>,
+    sender: Sender<(u32, PckForServer)>,
     id: u32,
     mut stream: TcpStream,
 ) {
@@ -184,13 +200,17 @@ fn handle_client(
     });
 }
 
-fn run_server(opt: Opt, _key_pem: &str) {
+fn run_server(opt: Opt, key_pem: &str) {
     let listen_addr = opt.get_addr();
     println!("Listening at {listen_addr}");
     let listener = TcpListener::bind(listen_addr).unwrap();
     listener.set_nonblocking(true).unwrap();
+
     let mut client_list: Vec<Option<(Sender<Arc<[u8]>>,)>> = Vec::new();
-    let (pcks_to_brd_snd, pcks_to_brd_rcv) = channel();
+    let (pcks_for_srv_snd, pcks_for_srv_rcv) = channel();
+
+    let admin_key_pair_der = key_pem_to_der(&key_pem);
+    let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
     for stream in listener.incoming() {
         match stream {
@@ -199,7 +219,7 @@ fn run_server(opt: Opt, _key_pem: &str) {
                 let (msgs_in_net_snd, msgs_in_net_rcv) = channel();
                 handle_client(
                     msgs_in_net_rcv,
-                    pcks_to_brd_snd.clone(),
+                    pcks_for_srv_snd.clone(),
                     client_list.len() as u32,
                     stream,
                 );
@@ -209,29 +229,61 @@ fn run_server(opt: Opt, _key_pem: &str) {
             Err(e) => panic!("IO error: {e}"),
         }
 
-        match pcks_to_brd_rcv.try_recv() {
-            Ok((_from_id, pck)) => {
-                // Send the packet to all the client threads
-                log::debug!(
-                    "Sending packet with data len {} to {} clients (lobby={})",
-                    pck.data.len(),
-                    client_list.iter().filter(|cl| cl.is_some()).count(),
-                    pck.network.is_none()
-                );
-                let buf = bincode::serialize(&pck).unwrap();
-                let mut buf_with_len = (buf.len() as u64).to_be_bytes().to_vec();
-                buf_with_len.extend_from_slice(&buf);
-                let msg_to_send: Arc<[u8]> = buf_with_len.into();
-                for client in client_list.iter_mut() {
-                    let sending_res = if let Some((msgs_in_net_snd,)) = client {
-                        msgs_in_net_snd.send(msg_to_send.clone())
-                    } else {
-                        Ok(())
-                    };
-                    if sending_res.is_err() {
-                        // The client has disconnected.
-                        // Remove it from the list.
-                        *client = None;
+        match pcks_for_srv_rcv.try_recv() {
+            Ok((from_id, pck)) => {
+                match pck {
+                    PckForServer::SignatureRequest(public_key_der) => {
+                        // Send the packet to all the client threads
+                        log::debug!("Signing AdminAdd for client id {from_id}");
+
+                        let ts = timestamp();
+                        let msg_add = admin.sign_addition(&public_key_der, ts).unwrap();
+                        let msg_add_buf = bincode::serialize(&msg_add).unwrap();
+                        let pck =
+                            PckForClient::SignedAddByAdmin(msg_add_buf, admin.public_key_der());
+
+                        let buf = bincode::serialize(&pck).unwrap();
+                        let mut buf_with_len = (buf.len() as u64).to_be_bytes().to_vec();
+                        buf_with_len.extend_from_slice(&buf);
+
+                        let msg_to_send: Arc<[u8]> = buf_with_len.into();
+
+                        let client = &mut client_list[from_id as usize];
+                        let sending_res = if let Some((msgs_in_net_snd,)) = client {
+                            msgs_in_net_snd.send(msg_to_send.clone())
+                        } else {
+                            Ok(())
+                        };
+                        if sending_res.is_err() {
+                            // The client has disconnected.
+                            // Remove it from the list.
+                            *client = None;
+                        }
+                    }
+                    PckForServer::BroadcastRequest(pck) => {
+                        // Send the packet to all the client threads
+                        log::debug!(
+                            "Sending packet with data len {} to {} clients (lobby={})",
+                            pck.data.len(),
+                            client_list.iter().filter(|cl| cl.is_some()).count(),
+                            pck.network.is_none()
+                        );
+                        let buf = bincode::serialize(&PckForClient::Packet(pck)).unwrap();
+                        let mut buf_with_len = (buf.len() as u64).to_be_bytes().to_vec();
+                        buf_with_len.extend_from_slice(&buf);
+                        let msg_to_send: Arc<[u8]> = buf_with_len.into();
+                        for client in client_list.iter_mut() {
+                            let sending_res = if let Some((msgs_in_net_snd,)) = client {
+                                msgs_in_net_snd.send(msg_to_send.clone())
+                            } else {
+                                Ok(())
+                            };
+                            if sending_res.is_err() {
+                                // The client has disconnected.
+                                // Remove it from the list.
+                                *client = None;
+                            }
+                        }
                     }
                 }
             }
@@ -324,17 +376,11 @@ fn run_client(opt: Opt, key_pem: &str) {
 
     stream.set_read_timeout(Some(READ_TIMEOUT)).unwrap();
 
-    // TODO: run the admin node on the server and ask it for signatures
-    let admin_key_pem = std::fs::read_to_string("tests/keys/test_key1.pem").unwrap();
-    let admin_key_pair_der = key_pem_to_der(&admin_key_pem);
-    let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
-
     let shared_key_opt = opt
         .start_member
         .then(|| node_manager::gen_shared_key().to_vec());
 
     let mut node = make_node_manager_key(key_pem, shared_key_opt);
-    node.add_admin_key_der(&admin.public_key_der()).unwrap();
 
     let mut pck_rdr = PckRdr::new();
     let stdin_input = make_stdin_thread();
@@ -345,14 +391,25 @@ fn run_client(opt: Opt, key_pem: &str) {
     let mut node_shared_key = node.shared_key().to_vec();
     let mut resps = Vec::new();
     loop {
-        if let Some(pck) = pck_rdr.maybe_read_pck::<Packet>(&mut stream) {
-            if let Some(network) = &pck.network {
-                if network != &node_shared_key {
-                    continue;
+        if let Some(pck) = pck_rdr.maybe_read_pck::<PckForClient>(&mut stream) {
+            match pck {
+                PckForClient::SignedAddByAdmin(msg_add_buf, admin_public_key_der) => {
+                    node.add_admin_key_der(&admin_public_key_der).unwrap();
+                    let msg_add: Message = bincode::deserialize(&msg_add_buf).unwrap();
+                    resps.extend_from_slice(&[Response::Message(msg_add, false)]);
+                }
+                PckForClient::Packet(pck) => {
+                    if let Some(network) = &pck.network {
+                        if network != &node_shared_key {
+                            continue;
+                        }
+                    }
+                    let in_members_network = pck.network.is_some();
+                    resps.extend_from_slice(
+                        &node.handle_msg(&pck.data, in_members_network).unwrap(),
+                    );
                 }
             }
-            let in_members_network = pck.network.is_some();
-            resps.extend_from_slice(&node.handle_msg(&pck.data, in_members_network).unwrap());
         }
         let ts = timestamp();
         match stdin_input.try_recv() {
@@ -360,8 +417,12 @@ fn run_client(opt: Opt, key_pem: &str) {
                 match line.to_ascii_lowercase().as_str() {
                     "join" | "j" => {
                         // Join
-                        let msg_add = admin.sign_addition(&node.public_key_der(), ts).unwrap();
-                        resps.extend_from_slice(&[Response::Message(msg_add, false)]);
+                        let buf = bincode::serialize(&PckForServer::SignatureRequest(
+                            node.public_key_der(),
+                        ))
+                        .unwrap();
+                        stream.write_all(&(buf.len() as u64).to_be_bytes()).unwrap();
+                        stream.write_all(&buf).unwrap();
                     }
                     "pause" | "p" => {
                         // Self Pause
@@ -422,7 +483,7 @@ fn run_client(opt: Opt, key_pem: &str) {
                     let network = on_members_network.then(|| node_shared_key.clone());
                     let data = bincode::serialize(&msg).unwrap();
                     let pck = Packet { network, data };
-                    let buf = bincode::serialize(&pck).unwrap();
+                    let buf = bincode::serialize(&PckForServer::BroadcastRequest(pck)).unwrap();
                     stream.write_all(&(buf.len() as u64).to_be_bytes()).unwrap();
                     stream.write_all(&buf).unwrap();
                 }
