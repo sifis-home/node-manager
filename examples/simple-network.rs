@@ -174,6 +174,7 @@ fn handle_client(
             }
             if let Some(pck) = pck_rdr.maybe_read_pck(&mut stream) {
                 if let Err(_) = sender.send((id, pck)) {
+                    // The channel was closed. The server is terminating.
                     break;
                 }
             }
