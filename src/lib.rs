@@ -260,14 +260,21 @@ fn padding_scheme_encrypt() -> PaddingScheme {
 }
 
 /// Returns the current time in miliseconds since the unix epoch
-fn timestamp() -> u64 {
+///
+/// Useful helper function for passing the timestamp to the API
+pub fn timestamp() -> Result<u64, Box<dyn Error>> {
     use std::time::SystemTime;
-    SystemTime::now()
+    let t = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
+        .map_err(|e| Box::<dyn Error>::from(e))?
         .as_millis()
         .try_into()
-        .unwrap()
+        .map_err(|e| Box::<dyn Error>::from(e))?;
+    Ok(t)
+}
+
+fn ts() -> u64 {
+    timestamp().unwrap()
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -629,7 +636,7 @@ impl NodeManager {
         msg: &[u8],
         from_members_network: bool,
     ) -> Result<Vec<Response>, Box<dyn Error>> {
-        let timestamp = timestamp();
+        let timestamp = ts();
         self.handle_msg_ts(msg, from_members_network, timestamp)
     }
 

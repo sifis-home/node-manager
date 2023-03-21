@@ -1,4 +1,4 @@
-use node_manager::{self, Message, NodeId, NodeManager, NodeManagerBuilder, Response};
+use node_manager::{self, timestamp, Message, NodeId, NodeManager, NodeManagerBuilder, Response};
 use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -236,7 +236,7 @@ fn run_server(opt: Opt, key_pem: &str) {
                         // Send the packet to all the client threads
                         log::debug!("Signing AdminAdd for client id {from_id}");
 
-                        let ts = timestamp();
+                        let ts = timestamp().unwrap();
                         let msg_add = admin.sign_addition(&public_key_der, ts).unwrap();
                         let msg_add_buf = bincode::serialize(&msg_add).unwrap();
                         let pck =
@@ -340,17 +340,6 @@ fn make_stdin_thread() -> Receiver<String> {
     receiver
 }
 
-// TODO deduplicate with function in node-manager
-fn timestamp() -> u64 {
-    use std::time::SystemTime;
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
-        .try_into()
-        .unwrap()
-}
-
 fn parse_hex(s: &str) -> Option<Vec<u8>> {
     let mut res = Vec::new();
     for byte_hex in s.as_bytes().chunks(2) {
@@ -411,7 +400,7 @@ fn run_client(opt: Opt, key_pem: &str) {
                 }
             }
         }
-        let ts = timestamp();
+        let ts = timestamp().unwrap();
         match stdin_input.try_recv() {
             Ok(line) => {
                 match line.to_ascii_lowercase().as_str() {

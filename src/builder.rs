@@ -59,7 +59,7 @@ impl NodeManagerBuilder {
                 public_key: key_pair.to_public_key(),
                 public_key_der,
                 status: self_status,
-                last_seen_time: super::timestamp(),
+                last_seen_time: super::ts(),
             },
         );
 
