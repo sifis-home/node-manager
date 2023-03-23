@@ -1,12 +1,9 @@
 #![allow(dead_code)]
 
 pub use crate::builder::NodeManagerBuilder;
+use crate::keys::{PrivateKey, PublicKey, VerifySignature};
 pub use crate::node_table::{NodeEntry, NodeStatus};
 use core::fmt::{self, Debug};
-use rsa::padding::PaddingScheme;
-use rsa::pkcs8::{DecodePublicKey, EncodePublicKey};
-use rsa::rand_core::OsRng;
-use rsa::{PublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{hash_map::Entry, HashMap};
@@ -14,6 +11,7 @@ use std::error::Error;
 
 pub mod admin;
 mod builder;
+pub mod keys;
 mod node_table;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -145,7 +143,7 @@ impl Operation {
         self,
         timestamp: u64,
         signer_id: &[u8],
-        signer_key: &RsaPrivateKey,
+        signer_key: &PrivateKey,
     ) -> Result<Message, Box<dyn Error>> {
         let mut msg = Message {
             timestamp,
@@ -154,7 +152,7 @@ impl Operation {
             operation: self,
         };
         let msg_digest = msg.digest();
-        msg.signature = signer_key.sign(padding_scheme_sign(), &msg_digest)?;
+        msg.signature = signer_key.sign(&msg_digest)?;
         Ok(msg)
     }
     pub fn kind_str(&self) -> &'static str {
@@ -186,18 +184,15 @@ impl Message {
         bincode::serialize(self).unwrap()
     }
     /// Checks if the signature of the message is valid
-    pub fn signature_is_valid(&self, key: &RsaPublicKey) -> bool {
+    pub fn signature_is_valid(&self, key: &impl VerifySignature) -> bool {
         let digest = self.digest();
         self.digest_is_valid(&digest, key)
     }
     /// Checks if the signature is valid for the given digest
     ///
     /// The digest mut fit to the message! Use [`Self::signature_is_valid`]
-    pub(crate) fn digest_is_valid(&self, digest: &[u8], key: &RsaPublicKey) -> bool {
-        if key
-            .verify(padding_scheme_sign(), digest, &self.signature)
-            .is_err()
-        {
+    pub(crate) fn digest_is_valid(&self, digest: &[u8], key: &impl VerifySignature) -> bool {
+        if key.verify(digest, &self.signature).is_err() {
             return false;
         }
         true
@@ -243,22 +238,6 @@ impl Debug for NodeId {
 /// A function that converts a DER encoded RSA key into a NodeId
 pub type NodeIdGenerator = fn(&[u8]) -> Result<Vec<u8>, ()>;
 
-fn padding_scheme_sign() -> PaddingScheme {
-    PaddingScheme::PSS {
-        digest: Box::new(sha2::Sha256::new()),
-        salt_rng: Box::new(OsRng),
-        salt_len: Some(16),
-    }
-}
-
-fn padding_scheme_encrypt() -> PaddingScheme {
-    PaddingScheme::OAEP {
-        digest: Box::new(sha2::Sha256::new()),
-        mgf_digest: Box::new(sha2::Sha256::new()),
-        label: Some(String::new()),
-    }
-}
-
 /// Returns the current time in miliseconds since the unix epoch
 ///
 /// Useful helper function for passing the timestamp to the API
@@ -301,13 +280,13 @@ pub fn gen_shared_key() -> [u8; SHARED_KEY_LEN] {
 }
 
 pub struct NodeManager {
-    key_pair: RsaPrivateKey,
+    key_pair: PrivateKey,
     node_id_generator: NodeIdGenerator,
     /// Shared key of the members network
     shared_key: Vec<u8>,
     node_id: Vec<u8>,
-    /// List of admin keys, given as tuples of `(<DER formatted key>, RsaPublicKey)`
-    admin_keys: Vec<(Vec<u8>, RsaPublicKey)>,
+    /// List of admin keys, given as tuples of `(<DER formatted key>, PublicKey)`
+    admin_keys: Vec<(Vec<u8>, PublicKey)>,
     nodes: HashMap<NodeId, NodeEntry>,
     /// Field storing a multitude of states for the node,
     /// mostly whether we wait for something to happen
@@ -342,10 +321,7 @@ impl NodeManager {
     }
     /// The public key in DER format
     pub fn public_key_der(&self) -> Vec<u8> {
-        let key_pub = self.key_pair.to_public_key().to_public_key_der().unwrap();
-
-        let key_der_slice: &[u8] = key_pub.as_ref();
-        key_der_slice.to_vec()
+        self.key_pair.to_public_key().to_public_key_der().unwrap()
     }
     fn table_hash(&self) -> Vec<u8> {
         let adm_hash = {
@@ -404,7 +380,7 @@ impl NodeManager {
     }
     /// Adds the given der formatted key as an admin key
     pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<(), Box<dyn Error>> {
-        let admin_public_key = RsaPublicKey::from_public_key_der(admin_key_der)?;
+        let admin_public_key = PublicKey::from_public_key_der(admin_key_der)?;
         if self.admin_keys.iter().any(|d| d.0 == admin_key_der) {
             // admin key already exists
             return Ok(());
@@ -463,11 +439,7 @@ impl NodeManager {
             // Important: only the nodes that are members should get the new key
             .filter(|(_id, nd_entry)| nd_entry.status == NodeStatus::Member)
             .map(|(id, nd_entry)| {
-                let enc_key = nd_entry.public_key.encrypt(
-                    &mut OsRng,
-                    padding_scheme_encrypt(),
-                    &self.shared_key,
-                )?;
+                let enc_key = nd_entry.public_key.encrypt(&self.shared_key)?;
                 let id: Vec<_> = id.0.to_owned();
                 Ok((id, enc_key))
             })
@@ -702,7 +674,7 @@ impl NodeManager {
         match msg.operation {
             // Lobby messages
             Operation::AddByAdmin(node_public_key_der) => {
-                let node_public_key_res = RsaPublicKey::from_public_key_der(&node_public_key_der);
+                let node_public_key_res = PublicKey::from_public_key_der(&node_public_key_der);
                 let node_id_res = (self.node_id_generator)(&node_public_key_der);
                 let (Ok(node_public_key), Ok(node_id)) = (node_public_key_res, node_id_res) else {
                     log::info!("Couldn't parse public key of node. Ignoring AddByAdmin message.");
@@ -738,7 +710,7 @@ impl NodeManager {
                 let mut rsps = Vec::new();
 
                 if responds_lobby {
-                    let Ok(encrypted_key) = node_public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
+                    let Ok(encrypted_key) = node_public_key.encrypt(&self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring AddByAdmin message.");
                         return Ok(Vec::new());
                     };
@@ -766,7 +738,7 @@ impl NodeManager {
                 }
                 node_entry.status = NodeStatus::Member;
                 if responds_lobby {
-                    let Ok(encrypted_key) = node_entry.public_key.encrypt(&mut OsRng, padding_scheme_encrypt(), &self.shared_key) else {
+                    let Ok(encrypted_key) = node_entry.public_key.encrypt(&self.shared_key) else {
                         log::info!("Couldn't encrypt encapsulated key. Ignoring SelfRejoin message.");
                         return Ok(Vec::new());
                     };
@@ -795,10 +767,7 @@ impl NodeManager {
                         log::info!("Couldn't parse NodeTable. Ignoring EncapsulatedKey message.");
                         return Ok(Vec::new());
                     };
-                    if let Ok(key) = self
-                        .key_pair
-                        .decrypt(padding_scheme_encrypt(), &encrypted_key)
-                    {
+                    if let Ok(key) = self.key_pair.decrypt(&encrypted_key) {
                         if key.len() == SHARED_KEY_LEN {
                             // TODO check that the msg_digest corresponds to the entry in the node table
                             // This check would not bring much though for security.
@@ -970,7 +939,7 @@ impl NodeManager {
                     return Ok(Vec::new());
                 };
 
-                let Ok(shared_key) = self.key_pair.decrypt(padding_scheme_encrypt(), enc_key) else {
+                let Ok(shared_key) = self.key_pair.decrypt(enc_key) else {
                     log::info!("Couldn't decrypt encapsulated key. Ignoring rekeying.");
                     return Ok(Vec::new());
                 };

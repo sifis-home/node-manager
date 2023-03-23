@@ -1,8 +1,7 @@
+use crate::keys::PrivateKey;
 use crate::{
     ManagerState, NodeEntry, NodeId, NodeIdGenerator, NodeManager, NodeStatus, SHARED_KEY_LEN,
 };
-use rsa::pkcs8::{DecodePrivateKey, EncodePublicKey};
-use rsa::RsaPrivateKey;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -32,15 +31,14 @@ impl NodeManagerBuilder {
             node_id_generator,
             shared_key,
         } = self;
-        let key_pair = RsaPrivateKey::from_pkcs8_der(&key_pair_pkcs8_der).unwrap();
+        let key_pair = PrivateKey::from_pkcs8_der(&key_pair_pkcs8_der).unwrap();
         /*let mut key_pair_pkcs8_der = key_pair_pkcs8_der.to_vec();
         let local_key_pair = Keypair::rsa_from_pkcs8(&mut key_pair_pkcs8_der).unwrap();
         let local_peer_id = PeerId::from(local_key_pair.public());
         local_peer_id.to_bytes();*/
-        let key_pub = key_pair.to_public_key().to_public_key_der().unwrap();
-        let public_key_der = key_pub.as_ref().to_vec();
+        let public_key_der = key_pair.to_public_key().to_public_key_der().unwrap();
 
-        let node_id = node_id_generator(key_pub.as_ref()).unwrap();
+        let node_id = node_id_generator(&public_key_der).unwrap();
 
         let mut nodes = HashMap::new();
         let (shared_key, state, self_status) = if let Some(k) = shared_key {

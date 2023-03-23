@@ -1,6 +1,6 @@
 use node_manager::admin::AdminNode;
+use node_manager::keys::PrivateKey;
 use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
-use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
@@ -46,7 +46,7 @@ fn make_node_manager(pem: &str) -> NodeManager {
 }
 
 fn key_pem_to_der(key_pem: &str) -> Vec<u8> {
-    let key = rsa::RsaPrivateKey::from_pkcs8_pem(key_pem).unwrap();
+    let key = PrivateKey::from_pkcs8_pem(key_pem).unwrap();
     let key_der = key.to_pkcs8_der().unwrap();
 
     let key_der_slice: &[u8] = key_der.as_ref();
@@ -54,7 +54,7 @@ fn key_pem_to_der(key_pem: &str) -> Vec<u8> {
 }
 
 fn key_pem_pair_to_der_public(key_pem: &str) -> Vec<u8> {
-    let key = rsa::RsaPrivateKey::from_pkcs8_pem(key_pem).unwrap();
+    let key = PrivateKey::from_pkcs8_pem(key_pem).unwrap();
     let key_pub = key.to_public_key().to_public_key_der().unwrap();
 
     let key_der_slice: &[u8] = key_pub.as_ref();
@@ -83,8 +83,8 @@ fn node_manager_test_basic() {
 
 #[test]
 fn node_manager_test_signing() {
-    let test_key_1 = rsa::RsaPrivateKey::from_pkcs8_pem(TEST_KEY_1).unwrap();
-    let test_key_2 = rsa::RsaPrivateKey::from_pkcs8_pem(TEST_KEY_2).unwrap();
+    let test_key_1 = PrivateKey::from_pkcs8_pem(TEST_KEY_1).unwrap();
+    let test_key_2 = PrivateKey::from_pkcs8_pem(TEST_KEY_2).unwrap();
 
     let test_op = node_manager::Operation::AddByAdmin(vec![1, 2, 3, 4]);
 

@@ -1,6 +1,5 @@
 use super::NodeId;
-use rsa::pkcs8::DecodePublicKey;
-use rsa::RsaPublicKey;
+use crate::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -20,7 +19,7 @@ pub enum NodeStatus {
 
 #[derive(Clone)]
 pub struct NodeEntry {
-    pub public_key: RsaPublicKey,
+    pub public_key: PublicKey,
     pub public_key_der: Vec<u8>,
     pub status: NodeStatus,
     pub last_seen_time: u64,
@@ -37,7 +36,7 @@ pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable, Box<dyn Error
             let tuple = (
                 id,
                 NodeEntry {
-                    public_key: RsaPublicKey::from_public_key_der(&public_key_der).unwrap(),
+                    public_key: PublicKey::from_public_key_der(&public_key_der)?,
                     public_key_der,
                     status,
                     last_seen_time: timestamp,

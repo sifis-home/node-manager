@@ -1,8 +1,7 @@
 //! Utilities for admin devices
 
 use super::{Message, Operation};
-use rsa::pkcs8::{DecodePrivateKey, EncodePublicKey};
-use rsa::RsaPrivateKey;
+use crate::keys::PrivateKey;
 use std::error::Error;
 
 pub(crate) const ADMIN_ID: &[u8] = b"admin";
@@ -10,13 +9,13 @@ pub(crate) const ADMIN_ID: &[u8] = b"admin";
 #[derive(Clone)]
 pub struct AdminNode {
     key_pair_der: Vec<u8>,
-    key_pair: RsaPrivateKey,
+    key_pair: PrivateKey,
 }
 
 impl AdminNode {
     pub fn from_key_pair_der(der: &[u8]) -> Self {
         Self {
-            key_pair: RsaPrivateKey::from_pkcs8_der(der).unwrap(),
+            key_pair: PrivateKey::from_pkcs8_der(der).unwrap(),
             key_pair_der: der.to_vec(),
         }
     }
