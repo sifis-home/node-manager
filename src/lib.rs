@@ -245,10 +245,10 @@ pub fn timestamp() -> Result<u64, Box<dyn Error>> {
     use std::time::SystemTime;
     let t = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map_err(|e| Box::<dyn Error>::from(e))?
+        .map_err(Box::<dyn Error>::from)?
         .as_millis()
         .try_into()
-        .map_err(|e| Box::<dyn Error>::from(e))?;
+        .map_err(Box::<dyn Error>::from)?;
     Ok(t)
 }
 
