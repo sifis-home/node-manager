@@ -28,11 +28,6 @@ impl PrivateKey {
             .decrypt(padding_scheme_encrypt(), data)
             .map_err(Box::<dyn Error>::from)
     }
-    pub fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
-        self.0
-            .encrypt(&mut OsRng, padding_scheme_encrypt(), data)
-            .map_err(Box::<dyn Error>::from)
-    }
     pub fn sign(&self, digest: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
         self.0
             .sign(padding_scheme_sign(), digest)
