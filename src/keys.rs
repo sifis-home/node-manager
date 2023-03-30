@@ -62,6 +62,12 @@ impl PrivateKey {
         let der = ed_key_pair.to_bytes();
         Self::from_pkcs8_der(&der).unwrap()
     }
+    pub fn is_rsa(&self) -> bool {
+        matches!(self.0, PrivKey::Rsa { .. })
+    }
+    pub fn is_ed25519(&self) -> bool {
+        matches!(self.0, PrivKey::Ed25519 { .. })
+    }
     pub fn from_pkcs8_der(der: &[u8]) -> Result<Self, Box<dyn Error>> {
         match RsaPrivateKey::from_pkcs8_der(der) {
             Ok(pk) => return Ok(PrivateKey(PrivKey::Rsa(pk))),
@@ -339,7 +345,16 @@ mod tests {
             assert_eq!(hi, hi_decrypted.as_slice());
         }
         {
-            let hi_big = (0..2)
+            // RSA gives MessageTooLong for 6 and above, while the ed25519 method
+            // allows any length.
+            let num = if key.is_rsa() {
+                5
+            } else if key.is_ed25519() {
+                640
+            } else {
+                unreachable!()
+            };
+            let hi_big = (0..num)
                 .map(|ctr: u32| Sha256::digest(ctr.to_be_bytes()))
                 .fold(Vec::new(), |mut v, sl| {
                     v.extend_from_slice(&sl);
