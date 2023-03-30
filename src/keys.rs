@@ -1,4 +1,4 @@
-use base64ct::{Base64, Decoder, Encoder, Encoding};
+use base64ct::{Base64, Encoding};
 use ed25519_dalek::{
     Keypair as EdKeypair, PublicKey as EdPublicKey, Signature as EdSignature, Signer, Verifier,
 };
