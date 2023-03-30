@@ -221,16 +221,20 @@ struct NetworkSimulator {
 }
 
 impl NetworkSimulator {
-    fn new(
+    fn new<S: AsRef<str>>(
         admin_key_pair_pem: &str,
         init_nodes: Vec<NodeManager>,
-        add_nodes_keys_pem: &[&str],
+        add_nodes_keys_pem: &[S],
     ) -> Self {
         let admin_key_pair_der = key_pem_to_der(admin_key_pair_pem);
         let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
         let mut nodes = init_nodes;
-        nodes.extend(add_nodes_keys_pem.iter().map(|k| make_node_manager(k)));
+        nodes.extend(
+            add_nodes_keys_pem
+                .iter()
+                .map(|k| make_node_manager((*k).as_ref())),
+        );
 
         let admin_public_key_der = admin.public_key_der();
         nodes.iter_mut().for_each(|nd| {
@@ -285,7 +289,7 @@ impl NetworkSimulator {
 }
 
 #[test]
-fn node_manager_test_joining_20() {
+fn node_manager_test_joining_20_rsa() {
     init_logger();
 
     let nodes = vec![make_node_manager_key(
@@ -297,6 +301,55 @@ fn node_manager_test_joining_20() {
     println!("Nodes generated");
 
     for (i, _) in TEST_KEYS[2..].iter().enumerate() {
+        let ts = 100_000 + i as u64 * 100;
+        sim.handle_node_join(i + 1, ts, ts + 50);
+    }
+    assert_eq!(sim.count_shared_keys(), 1);
+}
+
+#[test]
+fn node_manager_test_joining_20_hybrid() {
+    init_logger();
+
+    let mut test_keys = (0..20)
+        .map(|_| PrivateKey::generate_ed25519().to_pkcs8_pem().unwrap())
+        .collect::<Vec<String>>();
+    for (i, tk) in test_keys.iter_mut().enumerate() {
+        if i % 2 == 0 {
+            *tk = TEST_KEYS[i].to_owned();
+        }
+    }
+    let nodes = vec![make_node_manager_key(
+        &test_keys[1],
+        Some(TEST_SHARED_KEY.to_vec()),
+    )];
+    let mut sim = NetworkSimulator::new(&test_keys[0], nodes, &test_keys[2..]);
+
+    println!("Nodes generated");
+
+    for (i, _) in test_keys[2..].iter().enumerate() {
+        let ts = 100_000 + i as u64 * 100;
+        sim.handle_node_join(i + 1, ts, ts + 50);
+    }
+    assert_eq!(sim.count_shared_keys(), 1);
+}
+
+#[test]
+fn node_manager_test_joining_20_ed25519() {
+    init_logger();
+
+    let test_keys = (0..20)
+        .map(|_| PrivateKey::generate_ed25519().to_pkcs8_pem().unwrap())
+        .collect::<Vec<String>>();
+    let nodes = vec![make_node_manager_key(
+        &test_keys[1],
+        Some(TEST_SHARED_KEY.to_vec()),
+    )];
+    let mut sim = NetworkSimulator::new(&test_keys[0], nodes, &test_keys[2..]);
+
+    println!("Nodes generated");
+
+    for (i, _) in test_keys[2..].iter().enumerate() {
         let ts = 100_000 + i as u64 * 100;
         sim.handle_node_join(i + 1, ts, ts + 50);
     }
