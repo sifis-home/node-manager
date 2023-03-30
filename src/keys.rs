@@ -294,3 +294,94 @@ fn padding_scheme_encrypt() -> PaddingScheme {
         label: Some(String::new()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use sha2::Sha256;
+
+    use super::*;
+
+    fn test_key(key: PrivateKey) {
+        // Test serialization round trips of the private key
+        {
+            let key_pem = key.to_pkcs8_pem().unwrap();
+            let key_pem_again = PrivateKey::from_pkcs8_pem(&key_pem)
+                .unwrap()
+                .to_pkcs8_pem()
+                .unwrap();
+            assert_eq!(key_pem, key_pem_again);
+
+            let key_der = key.to_pkcs8_der().unwrap();
+            let key_der_again = PrivateKey::from_pkcs8_der(&key_der)
+                .unwrap()
+                .to_pkcs8_der()
+                .unwrap();
+            assert_eq!(key_der, key_der_again);
+        }
+        let key_pub = key.to_public_key();
+
+        // Test serialization round trips of the public key
+        {
+            let key_pub_der = key_pub.to_public_key_der().unwrap();
+            let key_pub_der_again = PublicKey::from_public_key_der(&key_pub_der)
+                .unwrap()
+                .to_public_key_der()
+                .unwrap();
+            assert_eq!(key_pub_der, key_pub_der_again);
+        }
+
+        let hi = b"hello, world!";
+
+        // Test encryption round trip
+        {
+            let hi_encrypted = key.to_public_key().encrypt(hi).unwrap();
+            let hi_decrypted = key.decrypt(&hi_encrypted).unwrap();
+            assert_eq!(hi, hi_decrypted.as_slice());
+        }
+        {
+            let hi_big = (0..2)
+                .map(|ctr: u32| Sha256::digest(ctr.to_be_bytes()))
+                .fold(Vec::new(), |mut v, sl| {
+                    v.extend_from_slice(&sl);
+                    v
+                });
+            let hi_encrypted = key.to_public_key().encrypt(&hi_big).unwrap();
+            let hi_decrypted = key.decrypt(&hi_encrypted).unwrap();
+            assert_eq!(hi_big, hi_decrypted.as_slice());
+        }
+
+        // Test signature round trip
+        {
+            let hi_hash = Sha256::digest(hi);
+            let mut hi_signature = key.sign(&hi_hash).unwrap();
+            key_pub.verify(&hi_hash, &hi_signature).unwrap();
+
+            let mut hi_hash_modified = hi_hash.clone();
+            hi_hash_modified
+                .iter_mut()
+                .for_each(|v| *v = v.wrapping_add(13));
+
+            let _ = key_pub
+                .verify(&hi_hash_modified, &hi_signature)
+                .unwrap_err();
+
+            hi_signature
+                .iter_mut()
+                .for_each(|v| *v = v.wrapping_add(13));
+            let _ = key_pub.verify(hi, &hi_signature).unwrap_err();
+        }
+    }
+
+    #[test]
+    fn test_rsa() {
+        let rsa_key_str = include_str!("../tests/keys/test_key1.pem");
+        let rsa_key = PrivateKey::from_pkcs8_pem(rsa_key_str).unwrap();
+        test_key(rsa_key);
+    }
+
+    #[test]
+    fn test_ed25519() {
+        let ed25519_key = PrivateKey::generate_ed25519();
+        test_key(ed25519_key);
+    }
+}
