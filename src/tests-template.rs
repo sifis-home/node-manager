@@ -4,37 +4,6 @@ use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
-// More can e.g. be generated via:
-// openssl genrsa -out tests/test_keyN.pem 2048
-
-const TEST_KEY_1: &str = include_str!("keys/test_key1.pem");
-const TEST_KEY_2: &str = include_str!("keys/test_key2.pem");
-const TEST_KEY_3: &str = include_str!("keys/test_key3.pem");
-const TEST_KEY_4: &str = include_str!("keys/test_key4.pem");
-
-const TEST_KEYS: &[&str] = &[
-    include_str!("keys/test_key1.pem"),
-    include_str!("keys/test_key2.pem"),
-    include_str!("keys/test_key3.pem"),
-    include_str!("keys/test_key4.pem"),
-    include_str!("keys/test_key5.pem"),
-    include_str!("keys/test_key6.pem"),
-    include_str!("keys/test_key7.pem"),
-    include_str!("keys/test_key8.pem"),
-    include_str!("keys/test_key9.pem"),
-    include_str!("keys/test_key10.pem"),
-    include_str!("keys/test_key11.pem"),
-    include_str!("keys/test_key12.pem"),
-    include_str!("keys/test_key13.pem"),
-    include_str!("keys/test_key14.pem"),
-    include_str!("keys/test_key15.pem"),
-    include_str!("keys/test_key16.pem"),
-    include_str!("keys/test_key17.pem"),
-    include_str!("keys/test_key18.pem"),
-    include_str!("keys/test_key19.pem"),
-    include_str!("keys/test_key20.pem"),
-];
-
 const TEST_SHARED_KEY: &[u8] = &[1; 32];
 
 fn init_logger() {
@@ -78,13 +47,14 @@ fn make_node_manager_key(pem: &str, key: Option<Vec<u8>>) -> NodeManager {
 
 #[test]
 fn node_manager_test_basic() {
-    let _mgr = make_node_manager(TEST_KEY_1);
+    let _mgr = make_node_manager(test_key());
 }
 
 #[test]
 fn node_manager_test_signing() {
-    let test_key_1 = PrivateKey::from_pkcs8_pem(TEST_KEY_1).unwrap();
-    let test_key_2 = PrivateKey::from_pkcs8_pem(TEST_KEY_2).unwrap();
+    let test_keys = test_keys();
+    let test_key_1 = PrivateKey::from_pkcs8_pem(test_keys[0]).unwrap();
+    let test_key_2 = PrivateKey::from_pkcs8_pem(test_keys[1]).unwrap();
 
     let test_op = node_manager::Operation::AddByAdmin(vec![1, 2, 3, 4]);
 
@@ -161,18 +131,19 @@ fn handle_msg_buf(
 fn node_manager_test_joining() {
     #![allow(unused_assignments)]
     init_logger();
+    let test_keys = test_keys();
 
-    let admin_key_pair_der = key_pem_to_der(TEST_KEY_1);
+    let admin_key_pair_der = key_pem_to_der(test_keys[0]);
     let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
     let mut nodes = vec![
-        make_node_manager_key(TEST_KEY_2, Some(TEST_SHARED_KEY.to_vec())),
-        make_node_manager(TEST_KEY_3),
-        make_node_manager(TEST_KEY_4),
+        make_node_manager_key(test_keys[1], Some(TEST_SHARED_KEY.to_vec())),
+        make_node_manager(test_keys[2]),
+        make_node_manager(test_keys[3]),
     ];
 
-    let key_3_der_public = key_pem_pair_to_der_public(TEST_KEY_3);
-    let key_4_der_public = key_pem_pair_to_der_public(TEST_KEY_4);
+    let key_3_der_public = key_pem_pair_to_der_public(test_keys[2]);
+    let key_4_der_public = key_pem_pair_to_der_public(test_keys[3]);
 
     let admin_public_key_der = admin.public_key_der();
     nodes.iter_mut().for_each(|nd| {
@@ -289,63 +260,15 @@ impl NetworkSimulator {
 }
 
 #[test]
-fn node_manager_test_joining_20_rsa() {
+fn node_manager_test_joining_20() {
     init_logger();
+    let test_keys = test_keys();
 
     let nodes = vec![make_node_manager_key(
-        TEST_KEY_2,
+        test_keys[1],
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..]);
-
-    println!("Nodes generated");
-
-    for (i, _) in TEST_KEYS[2..].iter().enumerate() {
-        let ts = 100_000 + i as u64 * 100;
-        sim.handle_node_join(i + 1, ts, ts + 50);
-    }
-    assert_eq!(sim.count_shared_keys(), 1);
-}
-
-#[test]
-fn node_manager_test_joining_20_hybrid() {
-    init_logger();
-
-    let mut test_keys = (0..20)
-        .map(|_| PrivateKey::generate_ed25519().to_pkcs8_pem().unwrap())
-        .collect::<Vec<String>>();
-    for (i, tk) in test_keys.iter_mut().enumerate() {
-        if i % 2 == 0 {
-            *tk = TEST_KEYS[i].to_owned();
-        }
-    }
-    let nodes = vec![make_node_manager_key(
-        &test_keys[1],
-        Some(TEST_SHARED_KEY.to_vec()),
-    )];
-    let mut sim = NetworkSimulator::new(&test_keys[0], nodes, &test_keys[2..]);
-
-    println!("Nodes generated");
-
-    for (i, _) in test_keys[2..].iter().enumerate() {
-        let ts = 100_000 + i as u64 * 100;
-        sim.handle_node_join(i + 1, ts, ts + 50);
-    }
-    assert_eq!(sim.count_shared_keys(), 1);
-}
-
-#[test]
-fn node_manager_test_joining_20_ed25519() {
-    init_logger();
-
-    let test_keys = (0..20)
-        .map(|_| PrivateKey::generate_ed25519().to_pkcs8_pem().unwrap())
-        .collect::<Vec<String>>();
-    let nodes = vec![make_node_manager_key(
-        &test_keys[1],
-        Some(TEST_SHARED_KEY.to_vec()),
-    )];
-    let mut sim = NetworkSimulator::new(&test_keys[0], nodes, &test_keys[2..]);
+    let mut sim = NetworkSimulator::new(test_keys[0], nodes, &test_keys[2..]);
 
     println!("Nodes generated");
 
@@ -359,17 +282,18 @@ fn node_manager_test_joining_20_ed25519() {
 #[test]
 fn node_manager_test_self_remove() {
     init_logger();
+    let test_keys = test_keys();
 
     let nodes = vec![make_node_manager_key(
-        TEST_KEY_2,
+        test_keys[1],
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+    let mut sim = NetworkSimulator::new(test_keys[0], nodes, &test_keys[2..10]);
 
     log::info!("######## Nodes generated ########");
 
     let mut ts = 100_000;
-    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+    for (i, _) in test_keys[2..10].iter().enumerate() {
         sim.handle_node_join(i + 1, ts, ts + 50);
         ts += 100;
     }
@@ -398,17 +322,18 @@ fn node_manager_test_self_remove() {
 #[test]
 fn node_manager_test_self_pause_rejoin() {
     init_logger();
+    let test_keys = test_keys();
 
     let nodes = vec![make_node_manager_key(
-        TEST_KEY_2,
+        test_keys[1],
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+    let mut sim = NetworkSimulator::new(test_keys[0], nodes, &test_keys[2..10]);
 
     log::info!("######## Nodes generated ########");
 
     let mut ts = 100_000;
-    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+    for (i, _) in test_keys[2..10].iter().enumerate() {
         sim.handle_node_join(i + 1, ts, ts + 50);
         ts += 100;
     }
@@ -459,17 +384,18 @@ fn node_manager_test_self_pause_rejoin() {
 #[test]
 fn node_manager_test_self_pause_rejoin_everyone() {
     init_logger();
+    let test_keys = test_keys();
 
     let nodes = vec![make_node_manager_key(
-        TEST_KEY_2,
+        test_keys[1],
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+    let mut sim = NetworkSimulator::new(test_keys[0], nodes, &test_keys[2..10]);
 
     log::info!("######## Nodes generated ########");
 
     let mut ts = 100_000;
-    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+    for (i, _) in test_keys[2..10].iter().enumerate() {
         sim.handle_node_join(i + 1, ts, ts + 50);
         ts += 100;
     }
@@ -523,17 +449,18 @@ fn node_manager_test_self_pause_rejoin_everyone() {
 #[test]
 fn node_manager_test_vote_remove() {
     init_logger();
+    let test_keys = test_keys();
 
     let nodes = vec![make_node_manager_key(
-        TEST_KEY_2,
+        test_keys[1],
         Some(TEST_SHARED_KEY.to_vec()),
     )];
-    let mut sim = NetworkSimulator::new(TEST_KEY_1, nodes, &TEST_KEYS[2..10]);
+    let mut sim = NetworkSimulator::new(test_keys[0], nodes, &test_keys[2..10]);
 
     log::info!("######## Nodes generated ########");
 
     let mut ts = 100_000;
-    for (i, _) in TEST_KEYS[2..10].iter().enumerate() {
+    for (i, _) in test_keys[2..10].iter().enumerate() {
         sim.handle_node_join(i + 1, ts, ts + 50);
         ts += 100;
     }
