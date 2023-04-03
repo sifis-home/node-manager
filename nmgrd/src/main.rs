@@ -38,5 +38,10 @@ async fn run(cfg: Config) -> Result<(), Error> {
     let key_pem = cfg.priv_key()?;
     let key_der = priv_key_pem_to_der(&key_pem);
     let mut builder = NodeManagerBuilder::new(&key_der, id_gen_fn);
+
+    if let Some(key) = cfg.shared_key() {
+        builder = builder.shared_key(key.to_vec());
+    }
+
     Ok(())
 }
