@@ -1,0 +1,26 @@
+[package]
+name = "node-manager"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/sifis-home/node-manager"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4.17"
+serde = { version = "1.0.140", features = ["derive"] }
+bincode = "1.0"
+sha2 = "0.10"
+getrandom = "0.2"
+
+# Key management
+rsa = "0.6"
+base64ct = "1.6"
+rand_07 = { package = "rand", version = "0.7" }
+rand = "0.8"
+hpke = "0.10"
+ed25519-dalek = "1.0"
+
+[dev-dependencies]
+env_logger = "0.10.0"
