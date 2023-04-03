@@ -1,5 +1,5 @@
+use node_manager::keys::priv_key_pem_to_der;
 use node_manager::{self, timestamp, Message, NodeId, NodeManager, NodeManagerBuilder, Response};
-use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{ErrorKind, Read, Write};
@@ -209,7 +209,7 @@ fn run_server(opt: Opt, key_pem: &str) {
     let mut client_list: Vec<Option<(Sender<Arc<[u8]>>,)>> = Vec::new();
     let (pcks_for_srv_snd, pcks_for_srv_rcv) = channel();
 
-    let admin_key_pair_der = key_pem_to_der(&key_pem);
+    let admin_key_pair_der = priv_key_pem_to_der(&key_pem);
     let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
     for stream in listener.incoming() {
@@ -302,15 +302,6 @@ fn run_server(opt: Opt, key_pem: &str) {
 }
 
 // TODO deduplicate this with the usage in tests/
-fn key_pem_to_der(key_pem: &str) -> Vec<u8> {
-    let key = rsa::RsaPrivateKey::from_pkcs8_pem(key_pem).unwrap();
-    let key_der = key.to_pkcs8_der().unwrap();
-
-    let key_der_slice: &[u8] = key_der.as_ref();
-    key_der_slice.to_vec()
-}
-
-// TODO deduplicate this with the usage in tests/
 fn make_node_manager_key(pem: &str, key: Option<Vec<u8>>) -> NodeManager {
     fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
         let mut hasher = Sha256::new();
@@ -319,7 +310,7 @@ fn make_node_manager_key(pem: &str, key: Option<Vec<u8>>) -> NodeManager {
         Ok(bytes)
     }
 
-    let mut builder = NodeManagerBuilder::new(&key_pem_to_der(pem), id_gen_fn);
+    let mut builder = NodeManagerBuilder::new(&priv_key_pem_to_der(pem), id_gen_fn);
     if let Some(key) = key {
         builder = builder.shared_key(key);
     }

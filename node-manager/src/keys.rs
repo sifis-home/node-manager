@@ -55,6 +55,14 @@ impl Clone for PrivKey {
     }
 }
 
+pub fn priv_key_pem_to_der(key_pem: &str) -> Vec<u8> {
+    let key = PrivateKey::from_pkcs8_pem(key_pem).unwrap();
+    let key_der = key.to_pkcs8_der().unwrap();
+
+    let key_der_slice: &[u8] = key_der.as_ref();
+    key_der_slice.to_vec()
+}
+
 impl PrivateKey {
     pub fn generate_ed25519() -> Self {
         let mut csprng = rand_07::rngs::OsRng;

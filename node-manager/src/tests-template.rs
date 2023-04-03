@@ -1,5 +1,5 @@
 use node_manager::admin::AdminNode;
-use node_manager::keys::PrivateKey;
+use node_manager::keys::{PrivateKey, priv_key_pem_to_der};
 use node_manager::{self, Message, NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
@@ -12,14 +12,6 @@ fn init_logger() {
 
 fn make_node_manager(pem: &str) -> NodeManager {
     make_node_manager_key(pem, None)
-}
-
-fn key_pem_to_der(key_pem: &str) -> Vec<u8> {
-    let key = PrivateKey::from_pkcs8_pem(key_pem).unwrap();
-    let key_der = key.to_pkcs8_der().unwrap();
-
-    let key_der_slice: &[u8] = key_der.as_ref();
-    key_der_slice.to_vec()
 }
 
 fn key_pem_pair_to_der_public(key_pem: &str) -> Vec<u8> {
@@ -38,7 +30,7 @@ fn make_node_manager_key(pem: &str, key: Option<Vec<u8>>) -> NodeManager {
         Ok(bytes)
     }
 
-    let mut builder = NodeManagerBuilder::new(&key_pem_to_der(pem), id_gen_fn);
+    let mut builder = NodeManagerBuilder::new(&priv_key_pem_to_der(pem), id_gen_fn);
     if let Some(key) = key {
         builder = builder.shared_key(key);
     }
@@ -133,7 +125,7 @@ fn node_manager_test_joining() {
     init_logger();
     let test_keys = test_keys();
 
-    let admin_key_pair_der = key_pem_to_der(test_keys[0]);
+    let admin_key_pair_der = priv_key_pem_to_der(test_keys[0]);
     let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
     let mut nodes = vec![
@@ -197,7 +189,7 @@ impl NetworkSimulator {
         init_nodes: Vec<NodeManager>,
         add_nodes_keys_pem: &[S],
     ) -> Self {
-        let admin_key_pair_der = key_pem_to_der(admin_key_pair_pem);
+        let admin_key_pair_der = priv_key_pem_to_der(admin_key_pair_pem);
         let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
         let mut nodes = init_nodes;
