@@ -8,6 +8,7 @@ mod config;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    env_logger::builder().try_init()?;
     let cfg = load_config()?;
     run(cfg).await?;
     Ok(())
