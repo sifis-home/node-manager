@@ -35,3 +35,30 @@ impl Config {
         panic!("Invalid config: admin_key or admin_key_path required.");
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use toml::from_str;
+
+    #[test]
+    fn test_loading_valid() {
+        let st = r#"
+            addr_dht = "Hi"
+            admin_key_path = "/path/to/admin-pub-key.pem"
+        "#;
+        let cfg: Config = from_str(st).unwrap();
+        cfg.validate().unwrap();
+    }
+
+    #[test]
+    fn test_loading_invalid() {
+        let st = r#"
+            addr_dht = "Hi"
+            # missing admin_key_path
+        "#;
+        let cfg: Config = from_str(st).unwrap();
+        let errs = cfg.validate().unwrap_err();
+        assert_eq!(errs.len(), 1);
+    }
+}
