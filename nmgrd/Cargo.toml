@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+node-manager = { path = "../node-manager" }
+serde = { version = "1.0.159", features = ["derive"] }
+tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "macros"] }
+toml = "0.7"
+anyhow = "1.0.70"
