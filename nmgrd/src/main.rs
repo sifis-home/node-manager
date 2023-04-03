@@ -1,6 +1,8 @@
 pub use crate::config::Config;
 use anyhow::{bail, Error};
-use node_manager::NodeManager;
+use node_manager::keys::priv_key_pem_to_der;
+use node_manager::{NodeManager, NodeManagerBuilder};
+use sha2::{Digest, Sha256};
 
 mod config;
 
@@ -25,5 +27,15 @@ fn load_config() -> Result<Config, Error> {
 }
 
 async fn run(cfg: Config) -> Result<(), Error> {
+    fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
+        let mut hasher = Sha256::new();
+        hasher.update(data);
+        let bytes = hasher.finalize()[..8].to_vec();
+        Ok(bytes)
+    }
+
+    let key_pem = cfg.priv_key()?;
+    let key_der = priv_key_pem_to_der(&key_pem);
+    let mut builder = NodeManagerBuilder::new(&key_der, id_gen_fn);
     Ok(())
 }

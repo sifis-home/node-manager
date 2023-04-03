@@ -11,3 +11,4 @@ serde = { version = "1.0.159", features = ["derive"] }
 tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "macros"] }
 toml = "0.7"
 anyhow = "1.0.70"
+sha2 = "0.10"
