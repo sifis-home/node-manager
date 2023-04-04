@@ -23,16 +23,23 @@ fn parse_hex_key(s: &str) -> Result<[u8; KEY_SIZE], String> {
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     addr_dht: String,
+
     admin_key_path: Option<String>,
     admin_key: Option<String>,
+
     priv_key_path: Option<String>,
     priv_key: Option<String>,
+
+    admin_join_msg_path: Option<String>,
+    admin_join_msg: Option<String>,
+
     shared_key: Option<String>,
 }
 
 impl Config {
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errs = Vec::new();
+
         if self.admin_key.is_none() && self.admin_key_path.is_none() {
             errs.push("Neither admin_key nor admin_key_path specified".to_owned());
         }
@@ -41,6 +48,7 @@ impl Config {
                 "Both admin_key and admin_key_path specified, please specify only one".to_owned(),
             );
         }
+
         if self.priv_key.is_none() && self.priv_key_path.is_none() {
             errs.push("Neither priv_key nor priv_key_path specified".to_owned());
         }
@@ -49,6 +57,17 @@ impl Config {
                 "Both priv_key and priv_key_path specified, please specify only one".to_owned(),
             );
         }
+
+        if self.admin_join_msg.is_none() && self.admin_join_msg_path.is_none() {
+            errs.push("Neither admin_join_msg nor admin_join_msg_path specified".to_owned());
+        }
+        if self.admin_join_msg.is_some() && self.admin_join_msg_path.is_some() {
+            errs.push(
+                "Both admin_join_msg and admin_join_msg_path specified, please specify only one"
+                    .to_owned(),
+            );
+        }
+
         if let Some(shared_key) = &self.shared_key {
             if let Err(err) = parse_hex_key(shared_key) {
                 errs.push(format!("Can't parse hex key: {err}"));
@@ -60,6 +79,7 @@ impl Config {
             Err(errs)
         }
     }
+
     pub fn admin_key(&self) -> Result<String, anyhow::Error> {
         if let Some(admin_key) = &self.admin_key {
             return Ok(admin_key.clone());
@@ -70,6 +90,7 @@ impl Config {
         }
         panic!("Invalid config: admin_key or admin_key_path required.");
     }
+
     pub fn priv_key(&self) -> Result<String, anyhow::Error> {
         if let Some(priv_key) = &self.priv_key {
             return Ok(priv_key.clone());
@@ -80,6 +101,18 @@ impl Config {
         }
         panic!("Invalid config: priv_key or priv_key_path required.");
     }
+
+    pub fn admin_join_msg(&self) -> Result<String, anyhow::Error> {
+        if let Some(admin_join_msg) = &self.admin_join_msg {
+            return Ok(admin_join_msg.clone());
+        }
+        if let Some(admin_join_msg_path) = &self.admin_join_msg_path {
+            let admin_join_msg_str = std::fs::read_to_string(admin_join_msg_path)?;
+            return Ok(admin_join_msg_str);
+        }
+        panic!("Invalid config: admin_join_msg or admin_join_msg_path required.");
+    }
+
     pub fn shared_key(&self) -> Option<[u8; KEY_SIZE]> {
         if let Some(key) = &self.shared_key {
             // We unwrap here because the error should have been caught by validate(),
