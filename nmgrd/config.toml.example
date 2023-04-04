@@ -1,0 +1,25 @@
+# This file documents the expected configuration file for the node manager daemon
+
+# REQUIRED key for specifying the address of the DHT.
+dht_url = "ws://127.0.0.1:3000/ws"
+
+# REQUIRED exactly one of priv_key or priv_key_path
+# The private key of the node
+# priv_key_path = "/path/to/private-key.pem"
+# priv_key = ""
+
+# REQUIRED exactly one of admin_key or admin_key_path
+# The admin key encodes the public key used by the admin device
+# admin_key_path = "/path/to/admin-pub-key.pem"
+# admin_key = ""
+
+# REQUIRED exactly one of admin_join_msg or admin_join_msg_path
+# Joining message signed by admin private key
+# admin_join_msg_path = "/path/to/admin-join-msg.base64"
+# admin_join_msg = ""
+
+# REQUIRED key for the lobby network in hex format
+lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+# OPTIONAL shared key for the members network in hex format
+shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
