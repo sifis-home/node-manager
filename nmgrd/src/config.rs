@@ -22,7 +22,7 @@ fn parse_hex_key(s: &str) -> Result<[u8; KEY_SIZE], String> {
 
 #[derive(Deserialize, Serialize)]
 pub struct Config {
-    addr_dht: String,
+    dht_url: String,
 
     admin_key_path: Option<String>,
     admin_key: Option<String>,
@@ -80,6 +80,10 @@ impl Config {
         }
     }
 
+    pub fn dht_url(&self) -> &str {
+        &self.dht_url
+    }
+
     pub fn admin_key(&self) -> Result<String, anyhow::Error> {
         if let Some(admin_key) = &self.admin_key {
             return Ok(admin_key.clone());
@@ -133,7 +137,7 @@ mod test {
     #[test]
     fn test_loading_valid() {
         let st = r#"
-            addr_dht = "Hi"
+            dht_url = "Hi"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -141,7 +145,7 @@ mod test {
         cfg.validate().unwrap();
 
         let st = r#"
-            addr_dht = "Hi"
+            dht_url = "Hi"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
@@ -153,7 +157,7 @@ mod test {
     #[test]
     fn test_loading_invalid() {
         let st = r#"
-            addr_dht = "Hi"
+            dht_url = "Hi"
             #admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -162,7 +166,7 @@ mod test {
         assert_eq!(errs.len(), 1);
 
         let st = r#"
-            addr_dht = "Hi"
+            dht_url = "Hi"
             admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -171,7 +175,7 @@ mod test {
         assert_eq!(errs.len(), 1);
 
         let st = r#"
-            addr_dht = "Hi"
+            dht_url = "Hi"
             #admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -180,7 +184,7 @@ mod test {
         assert_eq!(errs.len(), 2);
 
         let st = r#"
-            addr_dht = "Hi"
+            dht_url = "Hi"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             shared_key = "invalid"
