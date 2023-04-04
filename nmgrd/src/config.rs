@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 const KEY_SIZE: usize = node_manager::SHARED_KEY_LEN;
 
@@ -39,6 +40,12 @@ pub struct Config {
 impl Config {
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errs = Vec::new();
+
+        // Some basic validation check of the URL.
+        // Of course the final test is if connecting to the URL actually works.
+        if let Err(err) = Url::parse(&self.dht_url) {
+            errs.push(format!("DHT url parsing error: {err:?}"));
+        }
 
         if self.admin_key.is_none() && self.admin_key_path.is_none() {
             errs.push("Neither admin_key nor admin_key_path specified".to_owned());
@@ -137,7 +144,7 @@ mod test {
     #[test]
     fn test_loading_valid() {
         let st = r#"
-            dht_url = "Hi"
+            dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -145,7 +152,7 @@ mod test {
         cfg.validate().unwrap();
 
         let st = r#"
-            dht_url = "Hi"
+            dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
@@ -157,7 +164,7 @@ mod test {
     #[test]
     fn test_loading_invalid() {
         let st = r#"
-            dht_url = "Hi"
+            dht_url = "ws://localhost:3000"
             #admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -166,7 +173,7 @@ mod test {
         assert_eq!(errs.len(), 1);
 
         let st = r#"
-            dht_url = "Hi"
+            dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -175,7 +182,7 @@ mod test {
         assert_eq!(errs.len(), 1);
 
         let st = r#"
-            dht_url = "Hi"
+            dht_url = "ws://localhost:3000"
             #admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
         "#;
@@ -184,10 +191,20 @@ mod test {
         assert_eq!(errs.len(), 2);
 
         let st = r#"
-            dht_url = "Hi"
+            dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             shared_key = "invalid"
+        "#;
+        let cfg: Config = from_str(st).unwrap();
+        let errs = cfg.validate().unwrap_err();
+        assert_eq!(errs.len(), 1);
+
+        let st = r#"
+            dht_url = "definitely not an URL :)"
+            admin_key_path = "/path/to/admin-pub-key.pem"
+            priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
