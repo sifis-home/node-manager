@@ -147,6 +147,7 @@ mod test {
             dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
         "#;
         let cfg: Config = from_str(st).unwrap();
         cfg.validate().unwrap();
@@ -155,6 +156,7 @@ mod test {
             dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
             shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
@@ -167,6 +169,7 @@ mod test {
             dht_url = "ws://localhost:3000"
             #admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -176,6 +179,7 @@ mod test {
             dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -185,6 +189,7 @@ mod test {
             dht_url = "ws://localhost:3000"
             #admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -194,6 +199,7 @@ mod test {
             dht_url = "ws://localhost:3000"
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
             shared_key = "invalid"
         "#;
         let cfg: Config = from_str(st).unwrap();
