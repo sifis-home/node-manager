@@ -34,6 +34,8 @@ pub struct Config {
     admin_join_msg_path: Option<String>,
     admin_join_msg: Option<String>,
 
+    lobby_key: String,
+
     shared_key: Option<String>,
 }
 
@@ -75,11 +77,16 @@ impl Config {
             );
         }
 
+        if let Err(err) = parse_hex_key(&self.lobby_key) {
+            errs.push(format!("Can't parse hex shared key: {err}"));
+        }
+
         if let Some(shared_key) = &self.shared_key {
             if let Err(err) = parse_hex_key(shared_key) {
-                errs.push(format!("Can't parse hex key: {err}"));
+                errs.push(format!("Can't parse hex lobby key: {err}"));
             }
         }
+
         if errs.is_empty() {
             Ok(())
         } else {
@@ -124,6 +131,13 @@ impl Config {
         panic!("Invalid config: admin_join_msg or admin_join_msg_path required.");
     }
 
+    pub fn lobby_key(&self) -> [u8; KEY_SIZE] {
+        // We unwrap here because the error should have been caught by validate(),
+        // and if the user didn't call it before, it's an usage error.
+        let key = parse_hex_key(&self.lobby_key).expect("Hex key parsing error");
+        key
+    }
+
     pub fn shared_key(&self) -> Option<[u8; KEY_SIZE]> {
         if let Some(key) = &self.shared_key {
             // We unwrap here because the error should have been caught by validate(),
@@ -148,6 +162,7 @@ mod test {
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
         cfg.validate().unwrap();
@@ -157,7 +172,8 @@ mod test {
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
-            shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+            shared_key = "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
         cfg.validate().unwrap();
@@ -170,6 +186,7 @@ mod test {
             #admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -180,6 +197,7 @@ mod test {
             admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -190,6 +208,7 @@ mod test {
             #admin_key_path = "/path/to/admin-pub-key.pem"
             #priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -200,7 +219,19 @@ mod test {
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
             shared_key = "invalid"
+        "#;
+        let cfg: Config = from_str(st).unwrap();
+        let errs = cfg.validate().unwrap_err();
+        assert_eq!(errs.len(), 1);
+
+        let st = r#"
+            dht_url = "ws://localhost:3000"
+            admin_key_path = "/path/to/admin-pub-key.pem"
+            priv_key_path = "/path/to/admin-pub-key.pem"
+            admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "invalid"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
@@ -211,6 +242,7 @@ mod test {
             admin_key_path = "/path/to/admin-pub-key.pem"
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
+            lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
         "#;
         let cfg: Config = from_str(st).unwrap();
         let errs = cfg.validate().unwrap_err();
