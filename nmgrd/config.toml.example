@@ -23,3 +23,7 @@ lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 
 # OPTIONAL shared key for the members network in hex format
 shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+# OPTIONAL whether the lobby network should listen on the loopback interface
+# or on the normal network
+lobby_loopback_only = false

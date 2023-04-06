@@ -37,6 +37,9 @@ pub struct Config {
     lobby_key: String,
 
     shared_key: Option<String>,
+
+    #[serde(default)]
+    lobby_loopback_only: bool,
 }
 
 impl Config {
@@ -147,6 +150,9 @@ impl Config {
         } else {
             None
         }
+    }
+    pub fn lobby_loopback_only(&self) -> bool {
+        self.lobby_loopback_only
     }
 }
 
