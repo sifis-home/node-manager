@@ -5,6 +5,7 @@ use node_manager::{NodeManager, NodeManagerBuilder};
 use sha2::{Digest, Sha256};
 
 mod config;
+mod lobby_network;
 mod ws_api;
 
 #[tokio::main]

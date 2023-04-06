@@ -15,3 +15,5 @@ anyhow = "1.0.70"
 sha2 = "0.10"
 env_logger = "0.10.0"
 url = "2.3"
+libp2p = { version = "0.51.2", features = ["tokio", "mdns", "gossipsub", "noise", "yamux", "pnet", "rsa", "tcp", "macros"] }
+either = "1.5"
