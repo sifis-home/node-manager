@@ -1,6 +1,7 @@
 use base64ct::{Base64, Encoding};
 use node_manager::admin::sign_addition;
 use node_manager::keys::PrivateKey;
+use rand_chacha::rand_core::SeedableRng;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsError;
 
@@ -18,8 +19,13 @@ impl AdminKey {
     }
     pub fn generate_from_buffer(buf: &[u8]) -> Result<AdminKey, JsError> {
         // TODO don't use unwrap here but ?
-        // TODO actually use the buffer
-        let key = PrivateKey::generate_ed25519();
+        // TODO hash the buffer first with sha256
+        let mut seed = [0; 32];
+        for (si, bi) in seed.iter_mut().zip(buf.iter()) {
+            *si = *bi;
+        }
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(seed);
+        let key = PrivateKey::generate_ed25519_rng(&mut rng);
         Ok(Self { key })
     }
     pub fn as_pem(&self) -> Result<String, JsError> {

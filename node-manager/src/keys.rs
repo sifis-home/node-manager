@@ -64,11 +64,14 @@ pub fn priv_key_pem_to_der(key_pem: &str) -> Vec<u8> {
 }
 
 impl PrivateKey {
-    pub fn generate_ed25519() -> Self {
-        let mut csprng = rand_07::rngs::OsRng;
-        let ed_key_pair = EdKeypair::generate(&mut csprng);
+    pub fn generate_ed25519_rng<Rng: rand_07::Rng + rand_07::CryptoRng>(rng: &mut Rng) -> Self {
+        let ed_key_pair = EdKeypair::generate(rng);
         let der = ed_key_pair.to_bytes();
         Self::from_pkcs8_der(&der).unwrap()
+    }
+    pub fn generate_ed25519() -> Self {
+        let mut csprng = rand_07::rngs::OsRng;
+        Self::generate_ed25519_rng(&mut csprng)
     }
     pub fn is_rsa(&self) -> bool {
         matches!(self.0, PrivKey::Rsa { .. })

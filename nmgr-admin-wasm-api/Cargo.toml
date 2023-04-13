@@ -11,6 +11,7 @@ node-manager = { path = "../node-manager" }
 base64ct = { version = "1.6", features = ["std"] }
 console_error_panic_hook = "0.1.7"
 
+rand_chacha = { version = "0.2.2", default-features = false }
 # Enable the js and wasm-bindgen features so that the other crates that
 # pull in getrandom work.
 getrandom = { version = "0.2", features = ["js"] }
