@@ -33,7 +33,11 @@ impl AdminNode {
     }
 }
 
-pub fn sign_addition(key_pair: &PrivateKey, node_to_add_der_key: &[u8], timestamp: u64) -> Result<Message, Box<dyn Error>> {
+pub fn sign_addition(
+    key_pair: &PrivateKey,
+    node_to_add_der_key: &[u8],
+    timestamp: u64,
+) -> Result<Message, Box<dyn Error>> {
     let op = Operation::AddByAdmin(node_to_add_der_key.to_owned());
     op.sign(timestamp, ADMIN_ID, &key_pair)
 }
