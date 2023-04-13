@@ -40,6 +40,22 @@ RUST_LOG="node_manager=debug,simple_network=debug" cargo run --example simple-ne
 Here, one server is started connected to three nodes. One is specified as start member, possessing the shared key.
 The other nodes can then request to join via the `join` command.
 
+# The web assembly admin key example
+
+For the the joining workflow, the node manager relies on an admin key signing
+the public key of the joining node. This key is created and managed by the
+SIFIS-Home network creator's mobile application. In order to demonstrate the
+usage from javascript, we provide a simple html based demo of the admin
+component compiled to web assembly and viewable in the browser.
+
+## Building and running
+
+* obtain [wasm-pack](https://github.com/rustwasm/wasm-pack)
+* cd into `nmgr-admin-wasm-api`
+* execute `wasm-pack build --target web` to build the web assembly file and the glue js files
+* run a http server from that directory, for example via `python3 -m http.server`
+* in the browser, navigate to `http://localhost:8000/admin-demo.html` to see the demo
+
 # Acknowledgements
 
 This software has been developed in the scope of the H2020 project SIFIS-Home with GA n. 952652.

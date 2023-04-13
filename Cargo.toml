@@ -1,5 +1,5 @@
 [workspace]
-members = ["node-manager", "nmgrd"]
+members = ["node-manager", "nmgrd", "nmgr-admin-wasm-api"]
 
 # RSA operations are slow, we want the tests to be fast, even in debug mode
 [profile.dev.package."rsa"]

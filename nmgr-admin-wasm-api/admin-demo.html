@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>NodeManager admin component demo</title>
+<style>
+.inner {
+	padding: 5px;
+	display: flex;
+	flex-direction: column;
+	width: 600px;
+}
+.boxes {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	max-width: 100%;
+}
+</style>
+</head>
+<body>
+<div class="inner">
+<h2>NodeManager admin component demo</h2>
+<div class="boxes">
+<button type="button" id="gen_key">Generate admin key</button>
+<p>admin key pem: <textarea id="admin_key_pem" cols="60" rows="5"></textarea></p>
+<p>node pubkey input: <textarea id="node_key_pem" cols="60" rows="5"></textarea></p>
+<button type="button" id="sign_key">Sign public key</button>
+<p>signed key: <textarea id="signed_key_b64" cols="60" rows="5"></textarea></p>
+</div>
+</div>
+<script type="module">
+	import init, { AdminKey, set_panic_hook } from './pkg/nmgr_admin_wasm_api.js';
+	// A function to generate random data
+	// If WebCrypto is available, use getRandomValues instead!
+	// https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues
+	function generateRandomData() {
+		const now = Date.now();
+		let array = new Uint8Array(8);
+		[...array.keys()].map(i => array[i] = (now >> i) & 255);
+		return array;
+	}
+	async function setup() {
+		// Run these two functions once. The first initializes the internal
+		// web assembly component, the second function creates better error
+		// reporting.
+		await init();
+		set_panic_hook();
+
+		let admin_key_pem_txt = document.getElementById("admin_key_pem");
+		let node_key_pem_txt = document.getElementById("node_key_pem");
+		let signed_key_b64_txt = document.getElementById("signed_key_b64");
+
+		let gen_key_bt = document.getElementById("gen_key");
+		gen_key_bt.addEventListener("click", event => {
+			admin_key_pem_txt.value = "generating";
+			const random_buffer = generateRandomData();
+			const admin_key = AdminKey.generate_from_buffer(random_buffer);
+			admin_key_pem_txt.value = admin_key.as_pem();
+		});
+
+		let sign_key_bt = document.getElementById("sign_key");
+		sign_key_bt.addEventListener("click", event => {
+			// Load the admin key from pem
+			const admin_key = AdminKey.from_pem(admin_key_pem_txt.value);
+			// The current time in miliseconds since the unix epoch
+			const time = BigInt(Date.now());
+			const random_buffer = generateRandomData();
+			const signed_b64 = admin_key.sign_node_public_key(time, node_key_pem_txt.value, random_buffer);
+			signed_key_b64_txt.value = signed_b64;
+		});
+	}
+	setup();
+</script>
+</body>
+</html>
