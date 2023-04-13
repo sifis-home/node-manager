@@ -30,10 +30,11 @@
 <h2>NodeManager admin component demo</h2>
 <div class="boxes">
 <button type="button" id="gen_key">Generate admin key</button>
-<p>admin key pem:&nbsp;<textarea id="admin_key_pem" cols="60" rows="5"></textarea></p>
-<p>node pubkey input:&nbsp;<textarea id="node_key_pem" cols="60" rows="5"></textarea></p>
+<p>admin private key pem (input/output):&nbsp;<textarea id="admin_key_pem" cols="60" rows="5"></textarea></p>
+<p>admin public key pem (output):&nbsp;<textarea id="admin_public_key_pem" cols="60" rows="5" readonly></textarea></p>
+<p>node pubkey (input):&nbsp;<textarea id="node_key_pem" cols="60" rows="5"></textarea></p>
 <button type="button" id="sign_key">Sign public key</button>
-<p>signed key:&nbsp;<textarea id="signed_key_b64" cols="60" rows="5" readonly></textarea></p>
+<p>signed key (output):&nbsp;<textarea id="signed_key_b64" cols="60" rows="5" readonly></textarea></p>
 </div>
 </div>
 <script type="module">
@@ -55,6 +56,7 @@
 		set_panic_hook();
 
 		let admin_key_pem_txt = document.getElementById("admin_key_pem");
+		let admin_public_key_pem_txt = document.getElementById("admin_public_key_pem_txt");
 		let node_key_pem_txt = document.getElementById("node_key_pem");
 		let signed_key_b64_txt = document.getElementById("signed_key_b64");
 
@@ -64,12 +66,14 @@
 			const random_buffer = generateRandomData();
 			const admin_key = AdminKey.generate_from_buffer(random_buffer);
 			admin_key_pem_txt.value = admin_key.as_pem();
+			admin_public_key_pem.value = admin_key.public_as_pem();
 		});
 
 		let sign_key_bt = document.getElementById("sign_key");
 		sign_key_bt.addEventListener("click", event => {
 			// Load the admin key from pem
 			const admin_key = AdminKey.from_pem(admin_key_pem_txt.value);
+			admin_public_key_pem.value = admin_key.public_as_pem();
 			// The current time in miliseconds since the unix epoch
 			const time = BigInt(Date.now());
 			const random_buffer = generateRandomData();

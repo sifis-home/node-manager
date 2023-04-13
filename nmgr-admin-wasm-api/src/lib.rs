@@ -33,6 +33,11 @@ impl AdminKey {
         let pem = self.key.to_pkcs8_pem().unwrap();
         Ok(pem)
     }
+    pub fn public_as_pem(&self) -> Result<String, JsError> {
+        // TODO don't use unwrap here but ?
+        let pem = self.key.to_public_key().to_pkcs8_pem().unwrap();
+        Ok(pem)
+    }
     pub fn sign_node_public_key(
         &self,
         timestamp: u64,

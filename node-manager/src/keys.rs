@@ -255,6 +255,12 @@ impl PublicKey {
             PubKey::Ed25519 { der, .. } => Ok(der.clone()),
         }
     }
+    pub fn to_pkcs8_pem(&self) -> Result<String, Box<dyn Error>> {
+        match &self.0 {
+            PubKey::Rsa(pk) => Ok(pk.to_public_key_pem(Default::default())?.as_str().to_owned()),
+            PubKey::Ed25519 { .. } => Ok(Base64::encode_string(&self.to_public_key_der()?)),
+        }
+    }
     pub fn verify(&self, digest: &[u8], signature: &[u8]) -> Result<(), Box<dyn Error>> {
         match &self.0 {
             PubKey::Rsa(pk) => pk
