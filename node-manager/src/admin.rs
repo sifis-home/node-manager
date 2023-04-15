@@ -39,5 +39,5 @@ pub fn sign_addition(
     timestamp: u64,
 ) -> Result<Message, Box<dyn Error>> {
     let op = Operation::AddByAdmin(node_to_add_der_key.to_owned());
-    op.sign(timestamp, ADMIN_ID, &key_pair)
+    op.sign(timestamp, ADMIN_ID, key_pair)
 }

@@ -81,7 +81,7 @@ impl PrivateKey {
     }
     pub fn from_pkcs8_der(der: &[u8]) -> Result<Self, Box<dyn Error>> {
         match RsaPrivateKey::from_pkcs8_der(der) {
-            Ok(pk) => return Ok(PrivateKey(PrivKey::Rsa(pk))),
+            Ok(pk) => Ok(PrivateKey(PrivKey::Rsa(pk))),
             Err(_) => {
                 // Note: This isn't really in der format, nor pkcs8.
                 // TODO: find a better name for this function and the pem equivalent.
@@ -135,7 +135,7 @@ impl PrivateKey {
             PrivKey::Ed25519 { k_priv, .. } => {
                 // TODO get rid of unwraps
                 let (key_encapped_data, ciphertext_data): (Vec<u8>, Vec<u8>) =
-                    bincode::deserialize(&data).map_err(Box::<dyn Error>::from)?;
+                    bincode::deserialize(data).map_err(Box::<dyn Error>::from)?;
                 let encapped_key =
                     <X25519Encapped as Deserializable>::from_bytes(&key_encapped_data).unwrap();
                 let opened = single_shot_open::<Aead, Kdf, KemUsed>(
@@ -172,7 +172,6 @@ impl PrivateKey {
                 ))
                 .unwrap();
                 let k_pub = k_pub.clone();
-                let sign_pub = sign_pub.clone();
                 PubKey::Ed25519 {
                     der,
                     k_pub,
