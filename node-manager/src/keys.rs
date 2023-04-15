@@ -256,7 +256,10 @@ impl PublicKey {
     }
     pub fn to_pkcs8_pem(&self) -> Result<String, Box<dyn Error>> {
         match &self.0 {
-            PubKey::Rsa(pk) => Ok(pk.to_public_key_pem(Default::default())?.as_str().to_owned()),
+            PubKey::Rsa(pk) => Ok(pk
+                .to_public_key_pem(Default::default())?
+                .as_str()
+                .to_owned()),
             PubKey::Ed25519 { .. } => Ok(Base64::encode_string(&self.to_public_key_der()?)),
         }
     }
