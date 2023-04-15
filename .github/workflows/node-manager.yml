@@ -137,6 +137,30 @@ jobs:
     - name: Build
       run: cargo build --verbose
 
+  wasm-build:
+
+    needs: [reuse, clippy-rustfmt, static-code-analysis]
+
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+    - name: Build
+      run: cd nmgr-admin-wasm-api && wasm-pack build --target web
+
   docs:
 
     needs: [reuse, clippy-rustfmt, static-code-analysis]
@@ -162,7 +186,7 @@ jobs:
 
   code-coverage-ubuntu:
 
-    needs: [build, docs]
+    needs: [build, wasm-build, docs]
 
     runs-on: ubuntu-latest
 
@@ -239,7 +263,7 @@ jobs:
 
   weighted-code-coverage-ubuntu:
 
-    needs: [build, docs]
+    needs: [build, wasm-build, docs]
 
     runs-on: ubuntu-latest
 
