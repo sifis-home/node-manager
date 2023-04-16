@@ -63,11 +63,8 @@ jobs:
         cargo fmt --all -- --check --verbose
 
     - name: Run cargo clippy
-      uses: giraffate/clippy-action@v1
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        clippy_flags: --all-targets -- -D warnings
-        reporter: github-pr-review
+      run:
+        cargo clippy --all --all-targets -- --check --verbose -D warnings
 
   static-code-analysis:
 
