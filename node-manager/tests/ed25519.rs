@@ -1,6 +1,28 @@
+use rand_07::{rngs::SmallRng, SeedableRng, RngCore, CryptoRng};
+
+/// Testing random number generator for determinism during testing
+struct TestRng(SmallRng);
+
+impl RngCore for TestRng {
+    fn next_u32(&mut self) -> u32 {
+        self.0.next_u32()
+    }
+    fn next_u64(&mut self) -> u64 {
+        self.0.next_u64()
+    }
+    fn fill_bytes(&mut self, buf: &mut [u8]) {
+        self.0.fill_bytes(buf);
+    }
+    fn try_fill_bytes(&mut self, buf: &mut [u8]) -> Result<(), rand_07::Error> {
+        self.0.try_fill_bytes(buf)
+    }
+}
+
+impl CryptoRng for TestRng {}
+
 fn test_key() -> &'static str {
     Box::leak(
-        PrivateKey::generate_ed25519()
+        PrivateKey::generate_ed25519_rng(&mut TestRng(SmallRng::seed_from_u64(424242)))
             .to_pkcs8_pem()
             .unwrap()
             .into_boxed_str(),
@@ -8,10 +30,11 @@ fn test_key() -> &'static str {
 }
 
 fn test_keys() -> &'static [&'static str] {
+    let mut rng = TestRng(SmallRng::seed_from_u64(10_424_143));
     (0..20)
         .map(|_| {
             &*Box::leak(
-                PrivateKey::generate_ed25519()
+                PrivateKey::generate_ed25519_rng(&mut rng)
                     .to_pkcs8_pem()
                     .unwrap()
                     .into_boxed_str(),
