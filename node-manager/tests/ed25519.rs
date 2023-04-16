@@ -1,4 +1,4 @@
-use rand_07::{rngs::SmallRng, SeedableRng, RngCore, CryptoRng};
+use rand_07::{rngs::SmallRng, CryptoRng, RngCore, SeedableRng};
 
 /// Testing random number generator for determinism during testing
 struct TestRng(SmallRng);
