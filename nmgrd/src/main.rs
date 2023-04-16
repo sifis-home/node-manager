@@ -1,8 +1,8 @@
 pub use crate::config::Config;
 use anyhow::{bail, Error};
-use libp2p::core::identity;
+use libp2p_identity as identity;
 use node_manager::keys::priv_key_pem_to_der;
-use node_manager::{NodeManager, NodeManagerBuilder};
+use node_manager::NodeManagerBuilder;
 use sha2::{Digest, Sha256};
 use tokio_tungstenite::connect_async;
 
@@ -31,6 +31,7 @@ fn load_config() -> Result<Config, Error> {
     Ok(cfg)
 }
 
+#[allow(unused)]
 async fn run(cfg: Config) -> Result<(), Error> {
     fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
         let mut hasher = Sha256::new();
@@ -51,7 +52,8 @@ async fn run(cfg: Config) -> Result<(), Error> {
 
     let ws_conn = connect_async(cfg.dht_url());
     let priv_key_pem = cfg.priv_key();
-    let key_pair = identity::Keypair::ed25519_from_bytes()?;
+    let mut key_der = priv_key_pem_to_der(&key_pem);
+    let key_pair = identity::Keypair::ed25519_from_bytes(&mut key_der)?;
 
     let swarm = lobby_network::start(cfg.lobby_key(), key_pair, cfg.lobby_loopback_only()).await;
 
