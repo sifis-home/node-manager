@@ -5,9 +5,9 @@ on:
     branches:
       - master
     paths:
-      - 'nmgr-admin-wasm-api'
-      - 'node-manager'
-      - 'nmgrd'
+      - 'nmgr-admin-wasm-api/**'
+      - 'node-manager/**'
+      - 'nmgrd/**'
       - 'src/**'
       - 'crates/**'
       - '.github/**'
@@ -17,9 +17,9 @@ on:
     branches:
       - master
     paths:
-      - 'nmgr-admin-wasm-api'
-      - 'node-manager'
-      - 'nmgrd'
+      - 'nmgr-admin-wasm-api/**'
+      - 'node-manager/**'
+      - 'nmgrd/**'
       - 'src/**'
       - 'crates/**'
       - '.github/**'
