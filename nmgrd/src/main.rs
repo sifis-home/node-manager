@@ -1,8 +1,10 @@
 pub use crate::config::Config;
 use anyhow::{bail, Error};
+use libp2p::core::identity;
 use node_manager::keys::priv_key_pem_to_der;
 use node_manager::{NodeManager, NodeManagerBuilder};
 use sha2::{Digest, Sha256};
+use tokio_tungstenite::connect_async;
 
 mod config;
 mod lobby_network;
@@ -43,6 +45,19 @@ async fn run(cfg: Config) -> Result<(), Error> {
 
     if let Some(key) = cfg.shared_key() {
         builder = builder.shared_key(key.to_vec());
+    }
+
+    let node = builder.build();
+
+    let ws_conn = connect_async(cfg.dht_url());
+    let priv_key_pem = cfg.priv_key();
+    let key_pair = identity::Keypair::ed25519_from_bytes()?;
+
+    let swarm = lobby_network::start(cfg.lobby_key(), key_pair, cfg.lobby_loopback_only()).await;
+
+    // main loop
+    loop {
+        // TODO
     }
 
     Ok(())

@@ -5,11 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+vendored = ["tokio-tungstenite/native-tls-vendored"]
+
 [dependencies]
 node-manager = { path = "../node-manager" }
 serde = { version = "1.0.159", features = ["derive"] }
 serde_json = "1.0.95"
 tokio = { version = "1.27", features = ["rt", "rt-multi-thread", "macros"] }
+tokio-tungstenite = "0.18"
 toml = "0.7"
 anyhow = "1.0.70"
 sha2 = "0.10"
