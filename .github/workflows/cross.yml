@@ -1,0 +1,48 @@
+name: cross
+
+on:
+  push:
+    branches: [ "master"]
+    tags:
+      - 'v*.*.*'
+
+jobs:
+
+  cross-compile:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+    - name: Install Cross
+      run: |
+        curl -L "https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz" |
+        tar xz -C $HOME/.cargo/bin
+    - name: Perform cross compilation
+      run: |
+        cross build -p nmgrd --release --target aarch64-unknown-linux-musl --features=vendored
+        cross build -p nmgrd --release --target x86_64-unknown-linux-musl --features=vendored
+    - name: Login to GitHub container registry (ghcr.io)
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build and push x86
+      uses: docker/build-push-action@v4
+      with:
+        push: true
+        tags: ghcr.io/sifis-home/node-manager-amd64:latest
+        context: target/x86_64-unknown-linux-musl/release
+        file: docker/Dockerfile-amd64
+    - name: Build and push arm64v8
+      uses: docker/build-push-action@v4
+      with:
+        push: true
+        tags: ghcr.io/sifis-home/node-manager-arm64:latest
+        context: target/aarch64-unknown-linux-musl/release
+        file: docker/Dockerfile-OpenWrt
