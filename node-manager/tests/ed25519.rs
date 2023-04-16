@@ -1,3 +1,4 @@
+use once_cell::sync::OnceCell;
 use rand_07::{rngs::SmallRng, CryptoRng, RngCore, SeedableRng};
 
 /// Testing random number generator for determinism during testing
@@ -20,28 +21,29 @@ impl RngCore for TestRng {
 
 impl CryptoRng for TestRng {}
 
+// This static exists so that the LeakSanitizer doesn't think the keys are "leaked"
+// TODO: once once_cell from core stabilizes, use that one
+static KEYS: OnceCell<&'static [&'static str]> = OnceCell::new();
+
 fn test_key() -> &'static str {
-    Box::leak(
-        PrivateKey::generate_ed25519_rng(&mut TestRng(SmallRng::seed_from_u64(424242)))
-            .to_pkcs8_pem()
-            .unwrap()
-            .into_boxed_str(),
-    )
+    test_keys()[0]
 }
 
 fn test_keys() -> &'static [&'static str] {
-    let mut rng = TestRng(SmallRng::seed_from_u64(10_424_143));
-    (0..20)
-        .map(|_| {
-            &*Box::leak(
-                PrivateKey::generate_ed25519_rng(&mut rng)
-                    .to_pkcs8_pem()
-                    .unwrap()
-                    .into_boxed_str(),
-            )
-        })
-        .collect::<Vec<_>>()
-        .leak()
+    KEYS.get_or_init(|| {
+        let mut rng = TestRng(SmallRng::seed_from_u64(10_424_143));
+        (0..20)
+            .map(|_| {
+                &*Box::leak(
+                    PrivateKey::generate_ed25519_rng(&mut rng)
+                        .to_pkcs8_pem()
+                        .unwrap()
+                        .into_boxed_str(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .leak()
+    })
 }
 
 include!("../src/tests-template.rs");
