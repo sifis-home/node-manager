@@ -1,4 +1,5 @@
-// copy pasted from libp2p-rust-dht's domolibp2p.rs file
+// copy pasted from libp2p-rust-dht's domolibp2p.rs file,
+// plus minor modifications
 
 // Gossip includes
 use libp2p::gossipsub::MessageId;
@@ -69,7 +70,7 @@ pub async fn start_with_topics(
     local_key_pair: identity::Keypair,
     loopback_only: bool,
     topics: &[Topic],
-) -> Result<Swarm<DomoBehaviour>, Box<dyn Error>> {
+) -> Result<Swarm<Behaviour>, Box<dyn Error>> {
     let local_peer_id = PeerId::from(local_key_pair.public());
 
     let psk = Some(PreSharedKey::new(shared_key));
@@ -115,7 +116,7 @@ pub async fn start_with_topics(
             gossipsub.subscribe(topic).unwrap();
         }
 
-        let behaviour = DomoBehaviour { mdns, gossipsub };
+        let behaviour = Behaviour { mdns, gossipsub };
         //Swarm::new(transport, behaviour, local_peer_id)
 
         SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id).build()
@@ -135,7 +136,7 @@ pub async fn start_with_topics(
 // We create a custom network behaviour that combines mDNS and gossipsub.
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "OutEvent")]
-pub struct DomoBehaviour {
+pub struct Behaviour {
     pub mdns: libp2p::mdns::tokio::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
 }
