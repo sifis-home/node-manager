@@ -45,4 +45,4 @@ jobs:
         push: true
         tags: ghcr.io/sifis-home/node-manager-arm64:latest
         context: target/aarch64-unknown-linux-musl/release
-        file: docker/Dockerfile-OpenWrt
+        file: docker/Dockerfile-arm64
