@@ -137,8 +137,7 @@ impl Config {
     pub fn lobby_key(&self) -> [u8; KEY_SIZE] {
         // We unwrap here because the error should have been caught by validate(),
         // and if the user didn't call it before, it's an usage error.
-        let key = parse_hex_key(&self.lobby_key).expect("Hex key parsing error");
-        key
+        parse_hex_key(&self.lobby_key).expect("Hex key parsing error")
     }
 
     pub fn shared_key(&self) -> Option<[u8; KEY_SIZE]> {
