@@ -64,7 +64,7 @@ jobs:
 
     - name: Run cargo clippy
       run:
-        cargo clippy --all --all-targets -- --check --verbose -D warnings
+        cargo clippy --all --all-targets -- --verbose -D warnings
 
   static-code-analysis:
 
