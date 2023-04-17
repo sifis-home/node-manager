@@ -104,7 +104,7 @@ impl PrivateKey {
         let pk = match RsaPrivateKey::from_pkcs8_pem(pem) {
             Ok(pk) => PrivKey::Rsa(pk),
             Err(_) => {
-                let der = Base64::decode_vec(pem).unwrap();
+                let der = Base64::decode_vec(pem)?;
                 return Self::from_pkcs8_der(&der);
             }
         };
@@ -254,6 +254,14 @@ impl PublicKey {
             PubKey::Ed25519 { der, .. } => Ok(der.clone()),
         }
     }
+    pub fn from_public_key_pem(pem: &str) -> Result<Self, Box<dyn Error>> {
+        let _err = match RsaPublicKey::from_public_key_pem(pem) {
+            Ok(pk) => return Ok(PublicKey(PubKey::Rsa(pk))),
+            Err(err) => err,
+        };
+        let der = Base64::decode_vec(pem)?;
+        Self::from_public_key_der(&der)
+    }
     pub fn to_pkcs8_pem(&self) -> Result<String, Box<dyn Error>> {
         match &self.0 {
             PubKey::Rsa(pk) => Ok(pk
@@ -347,6 +355,13 @@ mod tests {
 
         // Test serialization round trips of the public key
         {
+            let key_pub_pem = key_pub.to_pkcs8_pem().unwrap();
+            let key_pub_pem_again = PublicKey::from_public_key_pem(&key_pub_pem)
+                .unwrap()
+                .to_pkcs8_pem()
+                .unwrap();
+            assert_eq!(key_pub_pem, key_pub_pem_again);
+
             let key_pub_der = key_pub.to_public_key_der().unwrap();
             let key_pub_der_again = PublicKey::from_public_key_der(&key_pub_der)
                 .unwrap()
