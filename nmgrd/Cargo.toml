@@ -22,3 +22,6 @@ url = "2.3"
 libp2p = { version = "0.51.2", features = ["tokio", "mdns", "gossipsub", "noise", "yamux", "pnet", "rsa", "tcp", "macros"] }
 libp2p-identity = "0.1.1"
 either = "1.5"
+log = "0.4"
+time = "0.3.17"
+base64ct = "1.6"

@@ -1,0 +1,179 @@
+use crate::config::Config;
+use crate::lobby_network::{Swarm, LOBBY_TOPIC};
+use anyhow::Error;
+use base64ct::{Base64, Encoding};
+use libp2p::futures::StreamExt;
+use libp2p::gossipsub::IdentTopic as Topic;
+use libp2p::swarm::SwarmEvent;
+use libp2p::{identity, mdns};
+use node_manager::keys::priv_key_pem_to_der;
+use node_manager::keys::PublicKey;
+use node_manager::{NodeManager, NodeManagerBuilder, Response};
+use sha2::{Digest, Sha256};
+use time::OffsetDateTime;
+use tokio::net::TcpStream;
+use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+
+pub struct Context {
+    cfg: Config,
+    topic: Topic,
+    swarm: Swarm,
+    #[allow(dead_code)]
+    ws_conn: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    node: NodeManager,
+}
+
+impl Context {
+    pub async fn start(cfg: Config) -> Result<Self, Error> {
+        fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
+            let mut hasher = Sha256::new();
+            hasher.update(data);
+            let bytes = hasher.finalize()[..8].to_vec();
+            Ok(bytes)
+        }
+
+        let key_pem = cfg.priv_key()?;
+        let key_der = priv_key_pem_to_der(&key_pem);
+        let mut builder = NodeManagerBuilder::new(&key_der, id_gen_fn);
+
+        if let Some(key) = cfg.shared_key() {
+            builder = builder.shared_key(key.to_vec());
+        }
+
+        let mut node = builder.build();
+
+        let admin_key_pem = cfg.admin_key()?;
+        let admin_key = PublicKey::from_public_key_pem(&admin_key_pem)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        node.add_admin_key(admin_key)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+
+        let (ws_conn, _resp) = connect_async(cfg.dht_url()).await?;
+        // TODO check response http code
+
+        let mut key_der = priv_key_pem_to_der(&key_pem);
+        let key_pair = identity::Keypair::ed25519_from_bytes(&mut key_der)?;
+
+        let swarm =
+            crate::lobby_network::start(cfg.lobby_key(), key_pair, cfg.lobby_loopback_only())
+                .await
+                .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+
+        let topic = Topic::new(LOBBY_TOPIC);
+
+        Ok(Self {
+            cfg,
+            swarm,
+            topic,
+            ws_conn,
+            node,
+        })
+    }
+    pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
+        tokio::select!(
+            event = self.swarm.select_next_some() => {
+            match event {
+                SwarmEvent::ExpiredListenAddr { address, .. } => {
+                    log::info!("Address {address:?} expired");
+                }
+                SwarmEvent::ConnectionEstablished {..} => {
+                        log::info!("Connection established ...");
+                }
+                SwarmEvent::ConnectionClosed { .. } => {
+                    log::info!("Connection closed");
+                }
+                SwarmEvent::ListenerError { .. } => {
+                    log::info!("Listener Error");
+                }
+                SwarmEvent::OutgoingConnectionError { .. } => {
+                    log::info!("Outgoing connection error");
+                }
+                SwarmEvent::ListenerClosed { .. } => {
+                    log::info!("Listener Closed");
+                }
+                SwarmEvent::NewListenAddr { address, .. } => {
+                    println!("Listening in {address:?}");
+                }
+                SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Gossipsub(
+                    libp2p::gossipsub::Event::Message {
+                        propagation_source: _peer_id,
+                        message_id: _id,
+                        message,
+                    },
+                )) => match message.topic.to_string().as_str() {
+                    LOBBY_TOPIC => {
+                        return self.handle_lobby_msg(&message.data);
+                    }
+                    topic => {
+                        log::info!("Not able to recognize message on topic {topic}");
+                    }
+                }
+                SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
+                    mdns::Event::Expired(list),
+                )) => {
+                    let local = OffsetDateTime::now_utc();
+
+                    for (peer, _) in list {
+                        log::info!("MDNS for peer {peer} expired {local:?}");
+                    }
+                }
+                SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
+                    mdns::Event::Discovered(list),
+                )) => {
+                    let local = OffsetDateTime::now_utc();
+                    for (peer, _) in list {
+                        self.swarm
+                            .behaviour_mut()
+                            .gossipsub
+                            .add_explicit_peer(&peer);
+                        log::info!("Discovered peer {peer} {local:?}");
+                    }
+
+                }
+                _ => {}
+                }
+            }
+        );
+        Ok(())
+    }
+    pub async fn broadcast_admin_join_msg(&mut self) -> Result<(), Error> {
+        let admin_join_msg = self.cfg.admin_join_msg()?;
+        let msg = Base64::decode_vec(&admin_join_msg)?;
+        // TODO do some validation on the message
+        self.broadcast_lobby_msg(&msg)
+    }
+    fn broadcast_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .publish(self.topic.hash(), msg)?;
+        Ok(())
+    }
+    fn broadcast_members_msg(&mut self, _msg: &[u8]) -> Result<(), Error> {
+        todo!()
+    }
+    fn handle_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+        let from_members_network = false;
+        let resps = self
+            .node
+            .handle_msg(msg, from_members_network)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        self.handle_responses(&resps)
+    }
+    fn handle_responses(&mut self, resps: &[Response]) -> Result<(), Error> {
+        for resp in resps.iter() {
+            match resp {
+                Response::Message(msg, from_members_network) => {
+                    let msg = msg.serialize();
+                    if *from_members_network {
+                        self.broadcast_lobby_msg(&msg)?;
+                    } else {
+                        self.broadcast_members_msg(&msg)?;
+                    }
+                }
+                Response::SetSharedKey(_key) => todo!(),
+            }
+        }
+        Ok(())
+    }
+}

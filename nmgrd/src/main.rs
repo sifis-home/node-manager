@@ -1,12 +1,9 @@
-pub use crate::config::Config;
+use crate::config::Config;
+use crate::context::Context;
 use anyhow::{bail, Error};
-use libp2p_identity as identity;
-use node_manager::keys::priv_key_pem_to_der;
-use node_manager::NodeManagerBuilder;
-use sha2::{Digest, Sha256};
-use tokio_tungstenite::connect_async;
 
 mod config;
+mod context;
 mod lobby_network;
 mod ws_api;
 
@@ -33,33 +30,13 @@ fn load_config() -> Result<Config, Error> {
 
 #[allow(unused)]
 async fn run(cfg: Config) -> Result<(), Error> {
-    fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
-        let mut hasher = Sha256::new();
-        hasher.update(data);
-        let bytes = hasher.finalize()[..8].to_vec();
-        Ok(bytes)
-    }
+    let mut ctx = Context::start(cfg).await?;
 
-    let key_pem = cfg.priv_key()?;
-    let key_der = priv_key_pem_to_der(&key_pem);
-    let mut builder = NodeManagerBuilder::new(&key_der, id_gen_fn);
-
-    if let Some(key) = cfg.shared_key() {
-        builder = builder.shared_key(key.to_vec());
-    }
-
-    let node = builder.build();
-
-    let ws_conn = connect_async(cfg.dht_url());
-    let priv_key_pem = cfg.priv_key();
-    let mut key_der = priv_key_pem_to_der(&key_pem);
-    let key_pair = identity::Keypair::ed25519_from_bytes(&mut key_der)?;
-
-    let swarm = lobby_network::start(cfg.lobby_key(), key_pair, cfg.lobby_loopback_only()).await;
+    ctx.broadcast_admin_join_msg().await?;
 
     // main loop
     loop {
-        // TODO
+        ctx.run_loop_iter().await?;
     }
 
     Ok(())
