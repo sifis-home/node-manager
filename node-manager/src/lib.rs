@@ -381,13 +381,17 @@ impl NodeManager {
     /// Adds the given der formatted key as an admin key
     pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<(), Box<dyn Error>> {
         let admin_public_key = PublicKey::from_public_key_der(admin_key_der)?;
+        self.add_admin_key(admin_public_key)
+    }
+    /// Adds the given key as an admin key
+    pub fn add_admin_key(&mut self, admin_public_key: PublicKey) -> Result<(), Box<dyn Error>> {
+        let admin_key_der = admin_public_key.to_public_key_der()?;
         if self.admin_keys.iter().any(|d| d.0 == admin_key_der) {
             // admin key already exists
             return Ok(());
         }
 
-        self.admin_keys
-            .push((admin_key_der.to_vec(), admin_public_key));
+        self.admin_keys.push((admin_key_der, admin_public_key));
         Ok(())
     }
     /// Returns a user-displayable string listing the nodes that are member of the node table
