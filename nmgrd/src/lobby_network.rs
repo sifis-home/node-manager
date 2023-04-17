@@ -22,7 +22,7 @@ use libp2p::yamux::YamuxConfig;
 //use libp2p::tcp::TcpConfig;
 use libp2p::Transport;
 
-use libp2p::{identity, mdns, swarm::NetworkBehaviour, PeerId, Swarm};
+use libp2p::{identity, mdns, swarm::NetworkBehaviour, PeerId};
 
 use libp2p::swarm::SwarmBuilder;
 use std::error::Error;
@@ -30,6 +30,8 @@ use std::time::Duration;
 
 pub const KEY_SIZE: usize = 32;
 pub const LOBBY_TOPIC: &str = "node-manager-lobby";
+
+pub type Swarm = libp2p::Swarm<Behaviour>;
 
 pub fn build_transport(
     key_pair: identity::Keypair,
@@ -60,7 +62,7 @@ pub async fn start(
     shared_key: [u8; KEY_SIZE],
     local_key_pair: identity::Keypair,
     loopback_only: bool,
-) -> Result<Swarm<Behaviour>, Box<dyn Error>> {
+) -> Result<Swarm, Box<dyn Error>> {
     let topics = [Topic::new(LOBBY_TOPIC)];
     start_with_topics(shared_key, local_key_pair, loopback_only, &topics).await
 }
@@ -70,7 +72,7 @@ pub async fn start_with_topics(
     local_key_pair: identity::Keypair,
     loopback_only: bool,
     topics: &[Topic],
-) -> Result<Swarm<Behaviour>, Box<dyn Error>> {
+) -> Result<Swarm, Box<dyn Error>> {
     let local_peer_id = PeerId::from(local_key_pair.public());
 
     let psk = Some(PreSharedKey::new(shared_key));
