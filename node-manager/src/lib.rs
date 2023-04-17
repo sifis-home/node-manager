@@ -540,7 +540,7 @@ impl NodeManager {
     /// If no unique result exists, `None` is returned.
     ///
     /// The node id can be fed to [`start_vote`](Self::start_vote) for example.
-    pub fn complete_node_id(&mut self, needle: &[u8]) -> Option<Vec<u8>> {
+    pub fn complete_node_id(&self, needle: &[u8]) -> Option<Vec<u8>> {
         let nodes = self
             .nodes
             .iter()
