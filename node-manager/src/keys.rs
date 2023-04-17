@@ -405,7 +405,7 @@ mod tests {
             let mut hi_signature = key.sign(&hi_hash).unwrap();
             key_pub.verify(&hi_hash, &hi_signature).unwrap();
 
-            let mut hi_hash_modified = hi_hash.clone();
+            let mut hi_hash_modified = hi_hash;
             hi_hash_modified
                 .iter_mut()
                 .for_each(|v| *v = v.wrapping_add(13));

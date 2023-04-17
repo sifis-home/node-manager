@@ -50,7 +50,7 @@ fn node_manager_test_signing() {
 
     let test_op = node_manager::Operation::AddByAdmin(vec![1, 2, 3, 4]);
 
-    let msg = test_op.clone().sign(246_802_000, &[], &test_key_1).unwrap();
+    let msg = test_op.sign(246_802_000, &[], &test_key_1).unwrap();
 
     assert!(msg.signature_is_valid(&test_key_1));
 
@@ -58,7 +58,7 @@ fn node_manager_test_signing() {
     assert!(!msg.signature_is_valid(&test_key_2));
 
     // Test that validation fails with different data for time
-    let mut msg_diff_time = msg.clone();
+    let mut msg_diff_time = msg;
     msg_diff_time.timestamp += 1;
     assert!(!msg_diff_time.signature_is_valid(&test_key_1));
 }
@@ -75,8 +75,7 @@ fn handle_msg_buf(
     let msgs_count: usize = buf.iter().map(|(_, msgs)| msgs.len()).sum();
     let msgs_names = buf
         .iter()
-        .map(|(_, msgs)| msgs.iter().map(|msg| msg.operation.kind_str()))
-        .flatten()
+        .flat_map(|(_, msgs)| msgs.iter().map(|msg| msg.operation.kind_str()))
         .collect::<Vec<&str>>();
     log::info!(
         "Distributing {msgs_count} message{s} to nodes {msgs_names:?}...",
