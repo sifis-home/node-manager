@@ -28,6 +28,7 @@ use std::error::Error;
 use std::time::Duration;
 
 pub const KEY_SIZE: usize = 32;
+pub const LOBBY_TOPIC: &str = "node-manager-lobby";
 
 pub fn build_transport(
     key_pair: identity::Keypair,
@@ -58,8 +59,8 @@ pub async fn start(
     shared_key: [u8; KEY_SIZE],
     local_key_pair: identity::Keypair,
     loopback_only: bool,
-) -> Result<Swarm<DomoBehaviour>, Box<dyn Error>> {
-    let topics = [Topic::new("node-manager-lobby")];
+) -> Result<Swarm<Behaviour>, Box<dyn Error>> {
+    let topics = [Topic::new(LOBBY_TOPIC)];
     start_with_topics(shared_key, local_key_pair, loopback_only, &topics).await
 }
 
