@@ -20,10 +20,7 @@ struct Opt {
 impl Opt {
     fn get_addr(&self) -> &str {
         const DEFAULT_ADDR: &str = "127.0.0.1:7000";
-        self.addr
-            .as_ref()
-            .map(String::as_str)
-            .unwrap_or(DEFAULT_ADDR)
+        self.addr.as_deref().unwrap_or(DEFAULT_ADDR)
     }
 }
 
@@ -42,11 +39,11 @@ fn parse_opt() -> Opt {
         addr: None,
         key_file: None,
     };
-    while let Some(arg) = args_iter.next() {
+    for arg in args_iter {
         let Some(mode) = mode.take() else {
             match arg.as_str() {
                 "--help" => {
-                    let exe_name = std::env::args().nth(0).unwrap();
+                    let exe_name = std::env::args().next().unwrap();
                     println!("Usage: {exe_name} [--server|--client] --private-key <path/to.pem> [--start-member] [--addr <address>] [--help]");
                     std::process::exit(0);
                 },
@@ -189,7 +186,7 @@ fn handle_client(
                 }
             }
             if let Some(pck) = pck_rdr.maybe_read_pck(&mut stream) {
-                if let Err(_) = sender.send((id, pck)) {
+                if sender.send((id, pck)).is_err() {
                     // The channel was closed. The server is terminating.
                     break;
                 }
@@ -206,10 +203,11 @@ fn run_server(opt: Opt, key_pem: &str) {
     let listener = TcpListener::bind(listen_addr).unwrap();
     listener.set_nonblocking(true).unwrap();
 
+    #[allow(clippy::type_complexity)]
     let mut client_list: Vec<Option<(Sender<Arc<[u8]>>,)>> = Vec::new();
     let (pcks_for_srv_snd, pcks_for_srv_rcv) = channel();
 
-    let admin_key_pair_der = priv_key_pem_to_der(&key_pem);
+    let admin_key_pair_der = priv_key_pem_to_der(key_pem);
     let admin = node_manager::admin::AdminNode::from_key_pair_der(&admin_key_pair_der);
 
     for stream in listener.incoming() {
@@ -416,14 +414,14 @@ fn run_client(opt: Opt, key_pem: &str) {
                     }
                     "info" | "i" | "t" => {
                         // Info
-                        println!("Own ID: {:?}", NodeId::from_data(&node.node_id()));
+                        println!("Own ID: {:?}", NodeId::from_data(node.node_id()));
                         // TODO find a better way to print the hex array
-                        println!("Shared key: {:?}", NodeId::from_data(&node.shared_key()));
+                        println!("Shared key: {:?}", NodeId::from_data(node.shared_key()));
                         println!("Node table: {}", node.table_str());
                     }
                     line if line.starts_with("start-vote ") => {
                         let id_str = line.split(' ').nth(1).unwrap();
-                        let partial_id = parse_hex(&id_str);
+                        let partial_id = parse_hex(id_str);
                         if let Some(partial_id) = partial_id {
                             let id_opt = node.complete_node_id(&partial_id);
                             if let Some(id) = id_opt {
