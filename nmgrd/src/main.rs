@@ -10,27 +10,27 @@ mod ws_api;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     env_logger::builder().try_init()?;
-    let cfg = load_config()?;
-    run(cfg).await?;
+    let (cfg, cfg_path) = load_config()?;
+    run(cfg, &cfg_path).await?;
     Ok(())
 }
 
-fn load_config() -> Result<Config, Error> {
+fn load_config() -> Result<(Config, String), Error> {
     let Some(cfg_file_path) = std::env::args().nth(1) else {
         bail!("Please specify path to config.toml on the command line");
     };
-    let cfg_file_str = std::fs::read_to_string(cfg_file_path)?;
+    let cfg_file_str = std::fs::read_to_string(&cfg_file_path)?;
     let cfg: Config = toml::from_str(&cfg_file_str)?;
     if let Err(errs) = cfg.validate() {
         let errs_string = errs.join("\n");
         bail!("Invalid config file due to the following errors: \n{errs_string}");
     }
-    Ok(cfg)
+    Ok((cfg, cfg_file_path))
 }
 
 #[allow(unused)]
-async fn run(cfg: Config) -> Result<(), Error> {
-    let mut ctx = Context::start(cfg).await?;
+async fn run(cfg: Config, cfg_path: &str) -> Result<(), Error> {
+    let mut ctx = Context::start(cfg, cfg_path).await?;
 
     ctx.broadcast_admin_join_msg().await?;
 

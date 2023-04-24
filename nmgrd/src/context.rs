@@ -22,6 +22,7 @@ const MEMBERS_TOPIC: &str = "node-manager-members";
 
 pub struct Context {
     cfg: Config,
+    cfg_path: String,
     topic: Topic,
     swarm: Swarm,
     #[allow(dead_code)]
@@ -30,7 +31,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn start(cfg: Config) -> Result<Self, Error> {
+    pub async fn start(cfg: Config, cfg_path: &str) -> Result<Self, Error> {
         fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
             let mut hasher = Sha256::new();
             hasher.update(data);
@@ -67,8 +68,11 @@ impl Context {
 
         let topic = Topic::new(LOBBY_TOPIC);
 
+        let cfg_path = cfg_path.to_string();
+
         Ok(Self {
             cfg,
+            cfg_path,
             swarm,
             topic,
             ws_conn,
@@ -228,9 +232,13 @@ impl Context {
                         self.broadcast_members_msg(&msg).await?;
                     }
                 }
-                Response::SetSharedKey(_key) => todo!(),
+                Response::SetSharedKey(key) => self.handle_rekeying(key).await?,
             }
         }
+        Ok(())
+    }
+    async fn handle_rekeying(&self, key: &[u8]) -> Result<(), Error> {
+        crate::config::set_new_key_for_file(&self.cfg_path, key)?;
         Ok(())
     }
 }
