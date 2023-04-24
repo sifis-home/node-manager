@@ -6,6 +6,7 @@ mod config;
 mod context;
 mod lobby_network;
 mod ws_api;
+mod ws_context;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

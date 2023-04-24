@@ -1,9 +1,10 @@
 use crate::config::Config;
 use crate::lobby_network::{Swarm, LOBBY_TOPIC};
 use crate::ws_api::AsyncWebSocketDomoMessage;
+use crate::ws_context::WsContext;
 use anyhow::Error;
 use base64ct::{Base64, Encoding};
-use libp2p::futures::{SinkExt, StreamExt};
+use libp2p::futures::StreamExt;
 use libp2p::gossipsub::IdentTopic as Topic;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{identity, mdns};
@@ -12,12 +13,8 @@ use node_manager::keys::PublicKey;
 use node_manager::{NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
-use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    connect_async, tungstenite::Message as WsMessage, MaybeTlsStream, WebSocketStream,
-};
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
-type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 const MEMBERS_TOPIC: &str = "node-manager-members";
 
 pub struct Context {
@@ -25,8 +22,7 @@ pub struct Context {
     cfg_path: String,
     topic: Topic,
     swarm: Swarm,
-    #[allow(dead_code)]
-    ws_conn: WsStream,
+    ws_conn: WsContext,
     node: NodeManager,
 }
 
@@ -55,8 +51,7 @@ impl Context {
         node.add_admin_key(admin_key)
             .map_err(|err| anyhow::anyhow!("{:?}", err))?;
 
-        let (ws_conn, _resp) = connect_async(cfg.dht_url()).await?;
-        // TODO check response http code
+        let ws_conn = crate::ws_context::WsContext::new(cfg.dht_url()).await?;
 
         let mut key_der = priv_key_pem_to_der(&key_pem);
         let key_pair = identity::Keypair::ed25519_from_bytes(&mut key_der)?;
@@ -106,8 +101,7 @@ impl Context {
                             },
                     }
                     WsMessage::Close(_) => {
-                        // TODO handle close gracefully, by just nicely trying to reopen nicely
-                        todo!()
+                        log::info!("Web socket connection closed, trying to connect again...");
                     }
                     WsMessage::Frame(_) => panic!("Received raw ws frame which was supposed to be handled by tungstenite"),
                     WsMessage::Binary(_) | WsMessage::Ping(_) | WsMessage::Pong(_) => {
