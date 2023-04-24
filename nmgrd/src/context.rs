@@ -12,14 +12,18 @@ use node_manager::{NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{
+    connect_async, tungstenite::Message as WsMessage, MaybeTlsStream, WebSocketStream,
+};
+
+type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 pub struct Context {
     cfg: Config,
     topic: Topic,
     swarm: Swarm,
     #[allow(dead_code)]
-    ws_conn: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    ws_conn: WsStream,
     node: NodeManager,
 }
 
@@ -71,6 +75,23 @@ impl Context {
     }
     pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
         tokio::select!(
+            ws_msg = self.ws_conn.select_next_some() => {
+                let ws_msg = ws_msg?;
+                match ws_msg {
+                    WsMessage::Text(_json_msg) => {
+                        todo!()
+                    }
+                    WsMessage::Close(_) => {
+                        // TODO handle close gracefully, by just nicely trying to reopen nicely
+                        todo!()
+                    }
+                    WsMessage::Frame(_) => panic!("Received raw ws frame which was supposed to be handled by tungstenite"),
+                    WsMessage::Binary(_) | WsMessage::Ping(_) | WsMessage::Pong(_) => {
+                        // We got an unexpected ws message kind
+                        log::warn!("Received unexpected ws message kind");
+                    }
+                }
+            }
             event = self.swarm.select_next_some() => {
             match event {
                 SwarmEvent::ExpiredListenAddr { address, .. } => {
