@@ -1,8 +1,9 @@
 use crate::config::Config;
 use crate::lobby_network::{Swarm, LOBBY_TOPIC};
+use crate::ws_api::AsyncWebSocketDomoMessage;
 use anyhow::Error;
 use base64ct::{Base64, Encoding};
-use libp2p::futures::StreamExt;
+use libp2p::futures::{SinkExt, StreamExt};
 use libp2p::gossipsub::IdentTopic as Topic;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{identity, mdns};
@@ -17,6 +18,7 @@ use tokio_tungstenite::{
 };
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+const MEMBERS_TOPIC: &str = "node-manager-members";
 
 pub struct Context {
     cfg: Config,
@@ -78,8 +80,26 @@ impl Context {
             ws_msg = self.ws_conn.select_next_some() => {
                 let ws_msg = ws_msg?;
                 match ws_msg {
-                    WsMessage::Text(_json_msg) => {
-                        todo!()
+                    WsMessage::Text(json_msg) => match serde_json::from_str(&json_msg) {
+                            Ok(msg) => {
+                                let msg: AsyncWebSocketDomoMessage = msg;
+                                match msg {
+                                    AsyncWebSocketDomoMessage::Volatile { value } => {
+                                        if value.get("topic").and_then(|topic| topic.as_str()) == Some(MEMBERS_TOPIC) {
+                                            if let Some(content) = value.get("content").and_then(|v| v.as_str()) {
+                                                if let Ok(msg) = Base64::decode_vec(content) {
+                                                    self.handle_members_msg(&msg).await?;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // We don't care about persistent messages
+                                    AsyncWebSocketDomoMessage::Persistent { .. } => (),
+                                }
+                            },
+                            Err(_err) => {
+                                log::warn!("Received json message of invalid format: '{json_msg}'");
+                            },
                     }
                     WsMessage::Close(_) => {
                         // TODO handle close gracefully, by just nicely trying to reopen nicely
@@ -123,7 +143,7 @@ impl Context {
                     },
                 )) => match message.topic.to_string().as_str() {
                     LOBBY_TOPIC => {
-                        return self.handle_lobby_msg(&message.data);
+                        return self.handle_lobby_msg(&message.data).await;
                     }
                     topic => {
                         log::info!("Not able to recognize message on topic {topic}");
@@ -170,18 +190,34 @@ impl Context {
             .publish(self.topic.hash(), msg)?;
         Ok(())
     }
-    fn broadcast_members_msg(&mut self, _msg: &[u8]) -> Result<(), Error> {
+    async fn broadcast_members_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+        let msg_b64 = Base64::encode_string(msg);
+        let msg_json = serde_json::json!({
+            "topic": MEMBERS_TOPIC,
+            "content": msg_b64,
+        });
+        // The conversion here is not supposed to error:
+        let msg_json_str = serde_json::to_string(&msg_json)?;
+        self.ws_conn.send(WsMessage::Text(msg_json_str)).await?;
         todo!()
     }
-    fn handle_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+    async fn handle_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
         let from_members_network = false;
         let resps = self
             .node
             .handle_msg(msg, from_members_network)
             .map_err(|err| anyhow::anyhow!("{:?}", err))?;
-        self.handle_responses(&resps)
+        self.handle_responses(&resps).await
     }
-    fn handle_responses(&mut self, resps: &[Response]) -> Result<(), Error> {
+    async fn handle_members_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+        let from_members_network = true;
+        let resps = self
+            .node
+            .handle_msg(msg, from_members_network)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        self.handle_responses(&resps).await
+    }
+    async fn handle_responses(&mut self, resps: &[Response]) -> Result<(), Error> {
         for resp in resps.iter() {
             match resp {
                 Response::Message(msg, from_members_network) => {
@@ -189,7 +225,7 @@ impl Context {
                     if *from_members_network {
                         self.broadcast_lobby_msg(&msg)?;
                     } else {
-                        self.broadcast_members_msg(&msg)?;
+                        self.broadcast_members_msg(&msg).await?;
                     }
                 }
                 Response::SetSharedKey(_key) => todo!(),
