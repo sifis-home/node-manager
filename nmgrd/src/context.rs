@@ -53,8 +53,8 @@ impl Context {
 
         let ws_conn = crate::ws_context::WsContext::new(cfg.dht_url()).await?;
 
-        let mut key_der = priv_key_pem_to_der(&key_pem);
-        let key_pair = identity::Keypair::ed25519_from_bytes(&mut key_der)?;
+        // TODO use key_der here instead of generating the key on the fly
+        let key_pair = identity::Keypair::generate_ed25519();
 
         let swarm =
             crate::lobby_network::start(cfg.lobby_key(), key_pair, cfg.lobby_loopback_only())
