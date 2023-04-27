@@ -1,8 +1,11 @@
 use anyhow::Result;
+use backon::{ExponentialBuilder, Retryable};
 use libp2p::futures::{SinkExt, StreamExt};
+use std::io::ErrorKind;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
-    connect_async, tungstenite::Message as WsMessage, MaybeTlsStream, WebSocketStream,
+    connect_async, tungstenite::error::Error as TsError, tungstenite::Message as WsMessage,
+    MaybeTlsStream, WebSocketStream,
 };
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -23,7 +26,22 @@ impl WsContext {
         Ok(this)
     }
     async fn connect(&mut self) -> Result<&mut WsStream> {
-        let (ws_conn, _resp) = connect_async(&self.url).await?;
+        let (ws_conn, _resp) = (|| async {
+            log::info!("Attempting ws connection to {}", self.url);
+            let res: Result<_> = Ok(connect_async(&self.url).await?);
+            res
+        })
+        .retry(&ExponentialBuilder::default())
+        .when(|e| {
+            let Some(e) = e.downcast_ref::<TsError>() else {
+                return false;
+            };
+            let TsError::Io(e) = e else {
+                return false;
+            };
+            e.kind() == ErrorKind::ConnectionRefused
+        })
+        .await?;
         Ok(self.ws_conn.insert(ws_conn))
     }
     pub async fn select_next_some(&mut self) -> Result<WsMessage> {
