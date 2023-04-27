@@ -35,7 +35,7 @@ fn make_test_files(count: u16, dir: &str) -> Result<()> {
         let admin_join_msg = Base64::encode_string(&admin_join_msg_buf);
         let shared_key = (i == 0).then(|| INIT_SHARED_KEY.to_string());
         let cfg = Config {
-            dht_url: "https://127.0.0.1:3000/".into(),
+            dht_url: "http://127.0.0.1:3000/".into(),
             admin_key: admin_key_public_pem.clone(),
             priv_key: priv_key.to_pkcs8_pem().unwrap(),
             admin_join_msg,
