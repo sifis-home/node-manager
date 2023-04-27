@@ -1,5 +1,6 @@
 use anyhow::Result;
 use backon::{ExponentialBuilder, Retryable};
+use core::time::Duration;
 use libp2p::futures::{SinkExt, StreamExt};
 use std::io::ErrorKind;
 use tokio::net::TcpStream;
@@ -31,7 +32,12 @@ impl WsContext {
             let res: Result<_> = Ok(connect_async(&self.url).await?);
             res
         })
-        .retry(&ExponentialBuilder::default())
+        .retry(
+            &ExponentialBuilder::default()
+                .with_max_times(usize::MAX)
+                .with_min_delay(Duration::from_millis(150))
+                .with_max_delay(Duration::from_millis(15_000)),
+        )
         .when(|e| {
             let Some(e) = e.downcast_ref::<TsError>() else {
                 return false;
