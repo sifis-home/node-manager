@@ -23,7 +23,6 @@ impl WsContext {
             url: url.to_string(),
             ws_conn: None,
         };
-        this.connect().await?;
         Ok(this)
     }
     async fn connect(&mut self) -> Result<&mut WsStream> {
