@@ -20,7 +20,7 @@ struct Config {
 
 const INIT_SHARED_KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
-fn make_test_files(count: u16) -> Result<()> {
+fn make_test_files(count: u16, dir: &str) -> Result<()> {
     let admin_key = PrivateKey::generate_ed25519();
     let admin_key_der = admin_key.to_pkcs8_der().unwrap();
     let admin_key_public_pem = admin_key.to_public_key().to_pkcs8_pem().unwrap();
@@ -44,7 +44,7 @@ fn make_test_files(count: u16) -> Result<()> {
             lobby_loopback_only: true,
         };
         let cfg_toml = toml::to_string(&cfg)?;
-        write_file(format!("config-{i:02}.toml"), cfg_toml)?;
+        write_file(format!("{dir}/config-{i:02}.toml"), cfg_toml)?;
     }
     Ok(())
 }
@@ -54,5 +54,6 @@ fn main() {
         .next()
         .and_then(|n_str| u16::from_str(&n_str).ok())
         .unwrap_or(5);
-    make_test_files(count).unwrap();
+    let dir = std::env::args().nth(2).unwrap_or_else(|| ".".to_string());
+    make_test_files(count, &dir).unwrap();
 }
