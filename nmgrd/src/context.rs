@@ -182,10 +182,14 @@ impl Context {
         self.broadcast_lobby_msg(&msg)
     }
     fn broadcast_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
-        self.swarm
+        if let Err(err) = self
+            .swarm
             .behaviour_mut()
             .gossipsub
-            .publish(self.topic.hash(), msg)?;
+            .publish(self.topic.hash(), msg)
+        {
+            log::warn!("Error during sending of lobby message: {err}");
+        }
         Ok(())
     }
     async fn broadcast_members_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
