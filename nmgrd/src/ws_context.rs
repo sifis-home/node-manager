@@ -19,7 +19,7 @@ pub struct WsContext {
 
 impl WsContext {
     pub async fn new(url: &str) -> Result<Self> {
-        let mut this = Self {
+        let this = Self {
             url: url.to_string(),
             ws_conn: None,
         };
