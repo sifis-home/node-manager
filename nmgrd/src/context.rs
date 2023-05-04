@@ -12,7 +12,9 @@ use node_manager::keys::priv_key_pem_to_der;
 use node_manager::keys::PublicKey;
 use node_manager::{NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
+use std::time::{Duration, Instant};
 use time::OffsetDateTime;
+use tokio::time::{Interval, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 const MEMBERS_TOPIC: &str = "node-manager-members";
@@ -24,6 +26,9 @@ pub struct Context {
     swarm: Swarm,
     ws_conn: WsContext,
     node: NodeManager,
+    interval: Interval,
+    start_time: Instant,
+    never_had_key: bool,
 }
 
 impl Context {
@@ -65,6 +70,12 @@ impl Context {
 
         let cfg_path = cfg_path.to_string();
 
+        let mut interval = tokio::time::interval(Duration::from_millis(300));
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+        let start_time = Instant::now();
+        let never_had_key = node.shared_key().is_empty();
+
         Ok(Self {
             cfg,
             cfg_path,
@@ -72,10 +83,33 @@ impl Context {
             topic,
             ws_conn,
             node,
+            interval,
+            start_time,
+            never_had_key,
         })
     }
     pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
         tokio::select!(
+            _ = self.interval.tick() => {
+                if !self.node.shared_key().is_empty() {
+                    self.never_had_key = false;
+                }
+                if self.never_had_key {
+                    let peers_count = self.swarm.connected_peers().count();
+                    if peers_count > 0 {
+                        self.broadcast_admin_join_msg().await?;
+                    } else {
+                        assert_eq!(peers_count, 0);
+                        let since_start = Instant::now() - self.start_time;
+                        const WAIT_UNTIL_SET_OWN: Duration = Duration::from_millis(15_000);
+                        if since_start > WAIT_UNTIL_SET_OWN {
+                            // Assume that we are the first node and generate our own shared key
+                            log::info!("Didn't find peers. Setting shared key to a random one, assuming we are the first node.");
+                            self.node.set_random_shared_key();
+                        }
+                    }
+                }
+            }
             ws_msg = self.ws_conn.select_next_some() => {
                 let ws_msg = ws_msg?;
                 match ws_msg {
