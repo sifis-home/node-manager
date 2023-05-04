@@ -102,7 +102,7 @@ impl Context {
                         assert_eq!(peers_count, 0);
                         let since_start = Instant::now() - self.start_time;
                         const WAIT_UNTIL_SET_OWN: Duration = Duration::from_millis(15_000);
-                        if since_start > WAIT_UNTIL_SET_OWN {
+                        if since_start > WAIT_UNTIL_SET_OWN && self.cfg.no_auto_first_node() {
                             // Assume that we are the first node and generate our own shared key
                             log::info!("Didn't find peers. Setting shared key to a random one, assuming we are the first node.");
                             self.node.set_random_shared_key();

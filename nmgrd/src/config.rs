@@ -42,6 +42,9 @@ pub struct Config {
 
     #[serde(default)]
     lobby_loopback_only: bool,
+
+    #[serde(default)]
+    no_auto_first_node: bool,
 }
 
 impl Config {
@@ -154,6 +157,9 @@ impl Config {
     }
     pub fn lobby_loopback_only(&self) -> bool {
         self.lobby_loopback_only
+    }
+    pub fn no_auto_first_node(&self) -> bool {
+        self.no_auto_first_node
     }
 }
 
