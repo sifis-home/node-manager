@@ -394,6 +394,26 @@ impl NodeManager {
         self.admin_keys.push((admin_key_der, admin_public_key));
         Ok(())
     }
+    /// Sets a random shared key
+    ///
+    /// This function is supposed to be called when the node manager is the first one in the network,
+    /// at the point of time when the code running the node decides that the node is likely the first one.
+    pub fn set_random_shared_key(&mut self) {
+        if !self.shared_key.is_empty() {
+            log::info!("Tried to set random shared key, but the shared key is already set!");
+            return;
+        }
+        self.set_init_random_shared_key(gen_shared_key().to_vec())
+    }
+    // This function is only supposed to be called upon initial shared key settings.
+    // it is wrong to call it for rekeying!
+    fn set_init_random_shared_key(&mut self, shared_key: Vec<u8>) {
+        self.shared_key = shared_key;
+        self.state = ManagerState::MemberOkay;
+        if let Some(nd) = self.nodes.get_mut(&NodeId::from_data(&self.node_id)) {
+            nd.status = NodeStatus::Member;
+        }
+    }
     /// Returns a user-displayable string listing the nodes that are member of the node table
     pub fn table_str(&self) -> String {
         node_table::table_str(&self.nodes)
