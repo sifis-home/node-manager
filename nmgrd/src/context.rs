@@ -151,7 +151,7 @@ impl Context {
                     log::info!("Address {address:?} expired");
                 }
                 SwarmEvent::ConnectionEstablished {..} => {
-                        log::info!("Connection established ...");
+                    log::info!("Connection established");
                 }
                 SwarmEvent::ConnectionClosed { .. } => {
                     log::info!("Connection closed");
@@ -166,7 +166,7 @@ impl Context {
                     log::info!("Listener Closed");
                 }
                 SwarmEvent::NewListenAddr { address, .. } => {
-                    println!("Listening in {address:?}");
+                    println!("Listening on {address:?}");
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Gossipsub(
                     libp2p::gossipsub::Event::Message {
@@ -271,7 +271,9 @@ impl Context {
         Ok(())
     }
     async fn handle_rekeying(&self, key: &[u8]) -> Result<(), Error> {
-        for path in self.cfg.rekeying_cfg_paths().iter() {
+        let paths = self.cfg.rekeying_cfg_paths();
+        log::info!("Rekeying: writing new shared key to {} files", paths.len());
+        for path in paths {
             crate::config::set_new_key_for_file(path, key)?;
         }
         Ok(())
