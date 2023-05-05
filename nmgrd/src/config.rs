@@ -36,6 +36,9 @@ pub struct Config {
     admin_join_msg_path: Option<String>,
     admin_join_msg: Option<String>,
 
+    #[serde(default)]
+    rekeying_cfg_paths: Vec<String>,
+
     lobby_key: String,
 
     shared_key: Option<String>,
@@ -139,6 +142,10 @@ impl Config {
         panic!("Invalid config: admin_join_msg or admin_join_msg_path required.");
     }
 
+    pub fn rekeying_cfg_paths(&self) -> &[String] {
+        &self.rekeying_cfg_paths
+    }
+
     pub fn lobby_key(&self) -> [u8; KEY_SIZE] {
         // We unwrap here because the error should have been caught by validate(),
         // and if the user didn't call it before, it's an usage error.
@@ -197,7 +204,10 @@ mod test {
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
             lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+            rekeying_cfg_paths = ["/path/1.toml", "/path/2.toml"]
             shared_key = "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+            lobby_loopback_only = false
+            no_auto_first_node = true
         "#;
         let cfg: Config = from_str(st).unwrap();
         cfg.validate().unwrap();

@@ -21,6 +21,7 @@ const MEMBERS_TOPIC: &str = "node-manager-members";
 
 pub struct Context {
     cfg: Config,
+    #[allow(unused)]
     cfg_path: String,
     topic: Topic,
     swarm: Swarm,
@@ -270,7 +271,9 @@ impl Context {
         Ok(())
     }
     async fn handle_rekeying(&self, key: &[u8]) -> Result<(), Error> {
-        crate::config::set_new_key_for_file(&self.cfg_path, key)?;
+        for path in self.cfg.rekeying_cfg_paths().iter() {
+            crate::config::set_new_key_for_file(path, key)?;
+        }
         Ok(())
     }
 }
