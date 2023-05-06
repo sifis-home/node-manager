@@ -50,14 +50,26 @@ impl WsContext {
         Ok(self.ws_conn.insert(ws_conn))
     }
     pub async fn select_next_some(&mut self) -> Result<WsMessage> {
-        let msg = self.connect().await?.select_next_some().await?;
+        // TODO: figure out how to move this logic into the connect function,
+        // all attempts yielded lifetime errors.
+        let conn = if let Some(conn) = &mut self.ws_conn {
+            conn
+        } else {
+            self.connect().await?
+        };
+        let msg = conn.select_next_some().await?;
         if msg.is_close() {
             self.ws_conn = None;
         }
         Ok(msg)
     }
     pub async fn send(&mut self, msg: WsMessage) -> Result<()> {
-        self.connect().await?.send(msg).await?;
+        let conn = if let Some(conn) = &mut self.ws_conn {
+            conn
+        } else {
+            self.connect().await?
+        };
+        conn.send(msg).await?;
         Ok(())
     }
 }
