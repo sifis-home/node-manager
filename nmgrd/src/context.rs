@@ -13,7 +13,6 @@ use node_manager::keys::PublicKey;
 use node_manager::{NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
-use time::OffsetDateTime;
 use tokio::time::{Interval, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
@@ -186,10 +185,8 @@ impl Context {
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
                     mdns::Event::Expired(list),
                 )) => {
-                    let local = OffsetDateTime::now_utc();
-
                     for (peer, _) in list {
-                        log::info!("MDNS for peer {peer} expired {local:?}");
+                        log::info!("MDNS for peer {peer} expired");
                     }
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
