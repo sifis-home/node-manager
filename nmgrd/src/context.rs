@@ -98,6 +98,7 @@ impl Context {
                 if self.never_had_key {
                     let peers_count = self.swarm.connected_peers().count();
                     if peers_count > 0 {
+                        log::info!("Broadcasting admin join message to {} peers", peers_count);
                         self.broadcast_admin_join_msg().await?;
                     } else {
                         assert_eq!(peers_count, 0);
@@ -166,7 +167,7 @@ impl Context {
                     log::info!("Listener Closed");
                 }
                 SwarmEvent::NewListenAddr { address, .. } => {
-                    println!("Listening on {address:?}");
+                    println!("Listening on {address:?} with ID {}", self.swarm.local_peer_id());
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Gossipsub(
                     libp2p::gossipsub::Event::Message {
@@ -194,13 +195,12 @@ impl Context {
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
                     mdns::Event::Discovered(list),
                 )) => {
-                    let local = OffsetDateTime::now_utc();
                     for (peer, _) in list {
                         self.swarm
                             .behaviour_mut()
                             .gossipsub
                             .add_explicit_peer(&peer);
-                        log::info!("Discovered peer {peer} {local:?}");
+                        log::info!("Discovered peer {peer}");
                     }
 
                 }
