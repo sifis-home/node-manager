@@ -137,6 +137,7 @@ impl Context {
                     }
                     WsMessage::Close(_) => {
                         log::info!("Web socket connection closed, trying to connect again...");
+                        // Reconnection handled by ws_conn
                     }
                     WsMessage::Frame(_) => panic!("Received raw ws frame which was supposed to be handled by tungstenite"),
                     WsMessage::Binary(_) | WsMessage::Ping(_) | WsMessage::Pong(_) => {

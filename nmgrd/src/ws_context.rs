@@ -4,10 +4,10 @@ use core::time::Duration;
 use libp2p::futures::{SinkExt, StreamExt};
 use std::io::ErrorKind;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    connect_async, tungstenite::error::Error as TsError, tungstenite::Message as WsMessage,
-    MaybeTlsStream, WebSocketStream,
+use tokio_tungstenite::tungstenite::{
+    error::Error as TsError, error::ProtocolError, Message as WsMessage,
 };
+use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -29,6 +29,7 @@ impl WsContext {
         let (ws_conn, _resp) = (|| async {
             log::info!("Attempting ws connection to {}", self.url);
             let res: Result<_> = Ok(connect_async(&self.url).await?);
+            log::info!("Ws connection to {} established", self.url);
             res
         })
         .retry(
@@ -50,18 +51,27 @@ impl WsContext {
         Ok(self.ws_conn.insert(ws_conn))
     }
     pub async fn select_next_some(&mut self) -> Result<WsMessage> {
-        // TODO: figure out how to move this logic into the connect function,
-        // all attempts yielded lifetime errors.
-        let conn = if let Some(conn) = &mut self.ws_conn {
-            conn
-        } else {
-            self.connect().await?
-        };
-        let msg = conn.select_next_some().await?;
-        if msg.is_close() {
-            self.ws_conn = None;
+        loop {
+            // TODO: figure out how to move this logic into the connect function,
+            // all attempts yielded lifetime errors.
+            let conn = if let Some(conn) = &mut self.ws_conn {
+                conn
+            } else {
+                self.connect().await?
+            };
+            let msg = match conn.select_next_some().await {
+                Ok(v) => v,
+                Err(TsError::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => {
+                    self.ws_conn = None;
+                    continue;
+                }
+                e => e?,
+            };
+            if msg.is_close() {
+                self.ws_conn = None;
+            }
+            return Ok(msg);
         }
-        Ok(msg)
     }
     pub async fn send(&mut self, msg: WsMessage) -> Result<()> {
         let conn = if let Some(conn) = &mut self.ws_conn {
