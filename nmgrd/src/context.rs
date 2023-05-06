@@ -70,7 +70,7 @@ impl Context {
 
         let cfg_path = cfg_path.to_string();
 
-        let mut interval = tokio::time::interval(Duration::from_millis(300));
+        let mut interval = tokio::time::interval(Duration::from_millis(2000));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         let start_time = Instant::now();
