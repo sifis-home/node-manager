@@ -234,7 +234,7 @@ impl Context {
         // The conversion here is not supposed to error:
         let msg_json_str = serde_json::to_string(&msg_json)?;
         self.ws_conn.send(WsMessage::Text(msg_json_str)).await?;
-        todo!()
+        Ok(())
     }
     async fn handle_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
         let from_members_network = false;
