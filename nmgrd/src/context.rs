@@ -152,10 +152,10 @@ impl Context {
                     log::info!("Address {address:?} expired");
                 }
                 SwarmEvent::ConnectionEstablished {..} => {
-                    log::info!("Connection established");
+                    log::info!("Connection with swarm member established");
                 }
                 SwarmEvent::ConnectionClosed { .. } => {
-                    log::info!("Connection closed");
+                    log::info!("Connection with swarm member closed");
                 }
                 SwarmEvent::ListenerError { .. } => {
                     log::info!("Listener Error");
