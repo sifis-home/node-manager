@@ -89,10 +89,12 @@ pub async fn start_with_topics(
 
         let mdns = mdns::tokio::Behaviour::new(mdnsconf, local_peer_id)?;
 
-        // To content-address message, we can take the hash of message and use it as an ID.
+        // Do NOT content-address messages, also take the sequence number into account,
+        // which is ever increasing.
         let message_id_fn = |message: &gossipsub::Message| {
             let mut s = DefaultHasher::new();
             message.data.hash(&mut s);
+            message.sequence_number.hash(&mut s);
             MessageId::from(s.finish().to_string())
         };
 
