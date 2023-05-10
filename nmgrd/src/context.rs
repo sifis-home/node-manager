@@ -215,6 +215,7 @@ impl Context {
         self.broadcast_lobby_msg(&msg)
     }
     fn broadcast_lobby_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+        log::debug!("Broadcasting lobby message...");
         if let Err(err) = self
             .swarm
             .behaviour_mut()
@@ -226,6 +227,7 @@ impl Context {
         Ok(())
     }
     async fn broadcast_members_msg(&mut self, msg: &[u8]) -> Result<(), Error> {
+        log::debug!("Broadcasting members message...");
         let msg_b64 = Base64::encode_string(msg);
         let msg_json = serde_json::json!({
             "topic": MEMBERS_TOPIC,
