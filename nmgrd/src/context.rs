@@ -97,19 +97,17 @@ impl Context {
                     self.never_had_key = false;
                 }
                 if self.never_had_key {
-                    let peers_count = self.swarm.connected_peers().count();
+                    let peers_count = self.swarm.behaviour().gossipsub.all_peers().count();
                     if peers_count > 0 {
                         log::info!("Broadcasting admin join message to {} peers", peers_count);
                         self.broadcast_admin_join_msg().await?;
-                    } else {
-                        assert_eq!(peers_count, 0);
-                        let since_start = Instant::now() - self.start_time;
-                        const WAIT_UNTIL_SET_OWN: Duration = Duration::from_millis(15_000);
-                        if since_start > WAIT_UNTIL_SET_OWN && self.cfg.no_auto_first_node() {
-                            // Assume that we are the first node and generate our own shared key
-                            log::info!("Didn't find peers. Setting shared key to a random one, assuming we are the first node.");
-                            self.node.set_random_shared_key();
-                        }
+                    }
+                    const WAIT_UNTIL_SET_OWN: Duration = Duration::from_millis(15_000);
+                    let since_start = Instant::now() - self.start_time;
+                    if since_start > WAIT_UNTIL_SET_OWN && !self.cfg.no_auto_first_node() {
+                        // Assume that we are the first node and generate our own shared key
+                        log::info!("Didn't get any responses on lobby network. Setting shared key to a random one, assuming we are the first node.");
+                        self.node.set_random_shared_key();
                     }
                 }
             }
