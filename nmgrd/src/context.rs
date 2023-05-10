@@ -290,7 +290,10 @@ impl Context {
     }
     pub async fn start_vote(&mut self, id: &[u8]) -> Result<(), Error> {
         let ts = timestamp().map_err(|err| anyhow::anyhow!("{:?}", err))?;
-        let msgs_vote = self.node.start_vote(ts, &id).map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        let msgs_vote = self
+            .node
+            .start_vote(ts, id)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
         self.handle_responses(&msgs_vote).await?;
         Ok(())
     }

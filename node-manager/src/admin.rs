@@ -2,7 +2,7 @@
 
 use super::{Message, Operation};
 use crate::keys::PrivateKey;
-use std::error::Error;
+use anyhow::Result;
 
 pub(crate) const ADMIN_ID: &[u8] = b"admin";
 
@@ -19,11 +19,7 @@ impl AdminNode {
             key_pair_der: der.to_vec(),
         }
     }
-    pub fn sign_addition(
-        &self,
-        node_to_add_der_key: &[u8],
-        timestamp: u64,
-    ) -> Result<Message, Box<dyn Error>> {
+    pub fn sign_addition(&self, node_to_add_der_key: &[u8], timestamp: u64) -> Result<Message> {
         sign_addition(&self.key_pair, node_to_add_der_key, timestamp)
     }
     pub fn public_key_der(&self) -> Vec<u8> {
@@ -37,7 +33,7 @@ pub fn sign_addition(
     key_pair: &PrivateKey,
     node_to_add_der_key: &[u8],
     timestamp: u64,
-) -> Result<Message, Box<dyn Error>> {
+) -> Result<Message> {
     let op = Operation::AddByAdmin(node_to_add_der_key.to_owned());
     op.sign(timestamp, ADMIN_ID, key_pair)
 }

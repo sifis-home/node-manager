@@ -3,11 +3,11 @@
 pub use crate::builder::NodeManagerBuilder;
 use crate::keys::{PrivateKey, PublicKey, VerifySignature};
 pub use crate::node_table::{NodeEntry, NodeStatus};
+use anyhow::Result;
 use core::fmt::{self, Debug};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{hash_map::Entry, HashMap};
-use std::error::Error;
 
 pub mod admin;
 mod builder;
@@ -144,7 +144,7 @@ impl Operation {
         timestamp: u64,
         signer_id: &[u8],
         signer_key: &PrivateKey,
-    ) -> Result<Message, Box<dyn Error>> {
+    ) -> Result<Message> {
         let mut msg = Message {
             timestamp,
             signer_id: signer_id.to_owned(),
@@ -241,14 +241,12 @@ pub type NodeIdGenerator = fn(&[u8]) -> Result<Vec<u8>, ()>;
 /// Returns the current time in miliseconds since the unix epoch
 ///
 /// Useful helper function for passing the timestamp to the API
-pub fn timestamp() -> Result<u64, Box<dyn Error>> {
+pub fn timestamp() -> Result<u64> {
     use std::time::SystemTime;
     let t = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map_err(Box::<dyn Error>::from)?
+        .duration_since(SystemTime::UNIX_EPOCH)?
         .as_millis()
-        .try_into()
-        .map_err(Box::<dyn Error>::from)?;
+        .try_into()?;
     Ok(t)
 }
 
@@ -379,12 +377,12 @@ impl NodeManager {
         }
     }
     /// Adds the given der formatted key as an admin key
-    pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<(), Box<dyn Error>> {
+    pub fn add_admin_key_der(&mut self, admin_key_der: &[u8]) -> Result<()> {
         let admin_public_key = PublicKey::from_public_key_der(admin_key_der)?;
         self.add_admin_key(admin_public_key)
     }
     /// Adds the given key as an admin key
-    pub fn add_admin_key(&mut self, admin_public_key: PublicKey) -> Result<(), Box<dyn Error>> {
+    pub fn add_admin_key(&mut self, admin_public_key: PublicKey) -> Result<()> {
         let admin_key_der = admin_public_key.to_public_key_der()?;
         if self.admin_keys.iter().any(|d| d.0 == admin_key_der) {
             // admin key already exists
@@ -454,7 +452,7 @@ impl NodeManager {
         does_rekeying
     }
     /// Make the node yield a rekeying message, and update its internal key
-    fn make_rekeying(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+    fn make_rekeying(&mut self, timestamp: u64) -> Result<Vec<Response>> {
         // Randomly generate a new key
         self.shared_key = gen_shared_key().to_vec();
         let mut keys = self
@@ -467,7 +465,7 @@ impl NodeManager {
                 let id: Vec<_> = id.0.to_owned();
                 Ok((id, enc_key))
             })
-            .collect::<Result<Vec<(Vec<_>, _)>, Box<dyn Error>>>()?;
+            .collect::<Result<Vec<(Vec<_>, _)>>>()?;
         keys.sort_by_key(|(id, _enc_key)| id.to_owned());
         let table_str = node_table::table_str(&self.nodes);
         log::debug!("rekeying for n={} node table = {}", keys.len(), table_str);
@@ -507,7 +505,7 @@ impl NodeManager {
     ///
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
     /// the message.
-    pub fn self_remove(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+    pub fn self_remove(&mut self, timestamp: u64) -> Result<Vec<Response>> {
         let op = Operation::SelfRemove;
         let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
             log::info!("Couldn't sign self remove msg. Not creating self removal msg.");
@@ -523,7 +521,7 @@ impl NodeManager {
     ///
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
     /// the message.
-    pub fn self_pause(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+    pub fn self_pause(&mut self, timestamp: u64) -> Result<Vec<Response>> {
         let op = Operation::SelfPause;
         let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
             log::info!("Couldn't sign self pause msg. Not creating self pause msg.");
@@ -545,7 +543,7 @@ impl NodeManager {
     ///
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
     /// the message.
-    pub fn self_rejoin(&mut self, timestamp: u64) -> Result<Vec<Response>, Box<dyn Error>> {
+    pub fn self_rejoin(&mut self, timestamp: u64) -> Result<Vec<Response>> {
         let op = Operation::SelfRejoin;
         let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
             log::info!("Couldn't sign self rejoin msg. Not creating self rejoin msg.");
@@ -581,11 +579,7 @@ impl NodeManager {
     ///
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
     /// the message.
-    pub fn start_vote(
-        &mut self,
-        timestamp: u64,
-        to_remove_id: &[u8],
-    ) -> Result<Vec<Response>, Box<dyn Error>> {
+    pub fn start_vote(&mut self, timestamp: u64, to_remove_id: &[u8]) -> Result<Vec<Response>> {
         let operation = VoteOperation::Remove(to_remove_id.to_owned());
         let op = Operation::VoteProposal(operation.clone());
         let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
@@ -627,11 +621,7 @@ impl NodeManager {
     ///
     /// Returns a list of actions that the caller must perform (change the key
     /// for the members network, broadcast a message...).
-    pub fn handle_msg(
-        &mut self,
-        msg: &[u8],
-        from_members_network: bool,
-    ) -> Result<Vec<Response>, Box<dyn Error>> {
+    pub fn handle_msg(&mut self, msg: &[u8], from_members_network: bool) -> Result<Vec<Response>> {
         let timestamp = ts();
         self.handle_msg_ts(msg, from_members_network, timestamp)
     }
@@ -645,7 +635,7 @@ impl NodeManager {
         msg: &[u8],
         from_members_network: bool,
         timestamp: u64,
-    ) -> Result<Vec<Response>, Box<dyn Error>> {
+    ) -> Result<Vec<Response>> {
         let Ok(msg): Result<Message, _> = bincode::deserialize(msg) else {
             log::info!("Ignoring message that we couldn't parse.");
             return Ok(Vec::new());

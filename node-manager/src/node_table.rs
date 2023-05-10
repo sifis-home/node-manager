@@ -1,8 +1,8 @@
 use super::NodeId;
 use crate::PublicKey;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::error::Error;
 
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NodeStatus {
@@ -28,7 +28,7 @@ pub struct NodeEntry {
 
 pub type NodeTable = HashMap<NodeId, NodeEntry>;
 
-pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable, Box<dyn Error>> {
+pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable> {
     let nodes_list: Vec<(NodeId, (Vec<u8>, NodeStatus))> = bincode::deserialize(data)?;
     let nodes = nodes_list
         .into_iter()
@@ -44,11 +44,11 @@ pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable, Box<dyn Error
             );
             Ok(tuple)
         })
-        .collect::<Result<HashMap<NodeId, NodeEntry>, Box<dyn Error>>>()?;
+        .collect::<Result<HashMap<NodeId, NodeEntry>>>()?;
     Ok(nodes)
 }
 
-pub fn serialize(this: &NodeTable) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn serialize(this: &NodeTable) -> Result<Vec<u8>> {
     let nodes_vec = this
         .iter()
         .map(
