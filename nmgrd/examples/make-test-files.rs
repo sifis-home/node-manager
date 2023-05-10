@@ -41,7 +41,8 @@ fn make_test_files(count: u16, dir: &str) -> Result<()> {
             admin_join_msg,
             lobby_key: "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1fffff".into(),
             shared_key,
-            lobby_loopback_only: true,
+            // Don't enable loopback only mode. It doesn't work (no peers are being discovered).
+            lobby_loopback_only: false,
         };
         let cfg_toml = toml::to_string(&cfg)?;
         write_file(format!("{dir}/config-{i:02}.toml"), cfg_toml)?;
