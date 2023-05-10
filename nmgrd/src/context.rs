@@ -4,6 +4,7 @@ use crate::ws_api::AsyncWebSocketDomoMessage;
 use crate::ws_context::WsContext;
 use anyhow::Error;
 use base64ct::{Base64, Encoding};
+use core::fmt::Display;
 use libp2p::futures::StreamExt;
 use libp2p::gossipsub::IdentTopic as Topic;
 use libp2p::swarm::SwarmEvent;
@@ -270,6 +271,7 @@ impl Context {
         }
         Ok(())
     }
+
     pub async fn self_pause(&mut self) -> Result<(), Error> {
         let msg_self_pause = self
             .node
@@ -293,5 +295,25 @@ impl Context {
             crate::config::set_new_key_for_file(path, key)?;
         }
         Ok(())
+    }
+
+    pub fn lobby_local_peer_id_display(&self) -> impl Display + '_ {
+        self.swarm.local_peer_id()
+    }
+
+    pub fn lobby_peer_table_str(&self) -> String {
+        let mut ret = self
+            .swarm
+            .behaviour()
+            .gossipsub
+            .all_peers()
+            .map(|(peer_id, _topics_subscribed)| format!("{peer_id} ; "))
+            .collect::<String>();
+        if !ret.is_empty() {
+            ret.pop();
+            ret.pop();
+            ret.pop();
+        }
+        ret
     }
 }

@@ -75,11 +75,15 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
     match cmd {
         "info" | "i" | "t" => {
             let node = &ctx.node;
-            println!("Own ID: {:?}", NodeId::from_data(node.node_id()));
+            println!(
+                "Own node manager ID: {:?}",
+                NodeId::from_data(node.node_id())
+            );
             // TODO find a better way to print the hex array
             println!("Shared key: {:?}", NodeId::from_data(node.shared_key()));
             println!("Node manager table: {}", node.table_str());
-            //println!("Lobby peers: {}", ctx.lobby_peers_table_str());
+            println!("Own lobby ID: {}", ctx.lobby_local_peer_id_display());
+            println!("Lobby peers: {}", ctx.lobby_peer_table_str());
         }
         "pause" | "p" => {
             ctx.self_pause().await.unwrap();
