@@ -29,9 +29,11 @@ pub enum SyncWebSocketDomoRequest {
         topic_name: String,
         topic_uuid: String,
     },
+    /// Publish a volatile message
     RequestPubMessage {
         value: serde_json::Value,
     },
+    /// Publish a persistent message
     RequestPostTopicUUID {
         topic_name: String,
         topic_uuid: String,
