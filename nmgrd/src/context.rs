@@ -10,7 +10,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{identity, mdns};
 use node_manager::keys::priv_key_pem_to_der;
 use node_manager::keys::PublicKey;
-use node_manager::{NodeManager, NodeManagerBuilder, Response};
+use node_manager::{timestamp, NodeManager, NodeManagerBuilder, Response};
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
 use tokio::time::{Interval, MissedTickBehavior};
@@ -25,7 +25,7 @@ pub struct Context {
     topic: Topic,
     swarm: Swarm,
     ws_conn: WsContext,
-    node: NodeManager,
+    pub(crate) node: NodeManager,
     interval: Interval,
     start_time: Instant,
     never_had_key: bool,
@@ -268,6 +268,22 @@ impl Context {
                 Response::SetSharedKey(key) => self.handle_rekeying(key).await?,
             }
         }
+        Ok(())
+    }
+    pub async fn self_pause(&mut self) -> Result<(), Error> {
+        let msg_self_pause = self
+            .node
+            .self_pause(timestamp().map_err(|err| anyhow::anyhow!("{:?}", err))?)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        self.handle_responses(&msg_self_pause).await?;
+        Ok(())
+    }
+    pub async fn self_rejoin(&mut self) -> Result<(), Error> {
+        let msg_self_rejoin = self
+            .node
+            .self_rejoin(timestamp().map_err(|err| anyhow::anyhow!("{:?}", err))?)
+            .map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        self.handle_responses(&msg_self_rejoin).await?;
         Ok(())
     }
     async fn handle_rekeying(&self, key: &[u8]) -> Result<(), Error> {

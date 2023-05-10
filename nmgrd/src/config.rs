@@ -5,7 +5,7 @@ use url::Url;
 
 const KEY_SIZE: usize = node_manager::SHARED_KEY_LEN;
 
-fn parse_hex_key(s: &str) -> Result<[u8; KEY_SIZE], String> {
+pub(crate) fn parse_hex_key(s: &str) -> Result<[u8; KEY_SIZE], String> {
     if s.len() == KEY_SIZE * 2 {
         let mut r = [0u8; KEY_SIZE];
         for i in 0..KEY_SIZE {
@@ -48,6 +48,9 @@ pub struct Config {
 
     #[serde(default)]
     no_auto_first_node: bool,
+
+    #[serde(default)]
+    debug_console: bool,
 }
 
 impl Config {
@@ -167,6 +170,9 @@ impl Config {
     }
     pub fn no_auto_first_node(&self) -> bool {
         self.no_auto_first_node
+    }
+    pub fn debug_console(&self) -> bool {
+        self.debug_console
     }
 }
 
