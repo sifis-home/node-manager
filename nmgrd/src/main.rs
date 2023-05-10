@@ -94,20 +94,17 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
         // TODO turn this into an if-let guard once those are stable
         "start-vote" => {
             if let Some(id_str) = args.next() {
-                let _partial_id = config::parse_hex_key(id_str);
-                /*if let Some(partial_id) = partial_id {
-                    let id_opt = node.complete_node_id(&partial_id);
-                    if let Some(id) = id_opt {
-                        let msgs_vote = node.start_vote(ts, &id).unwrap();
-                        resps.extend_from_slice(&msgs_vote);
-                    } else {
-                        println!(
-                            "error: couldn't find node id '{id_str}' or it was not unique"
-                        );
-                    }
-                } else {
+                let partial_id = config::parse_hex_key(id_str);
+                let Ok(partial_id) = partial_id else {
                     println!("invalid hex array: '{id_str}'");
-                }*/
+                    return
+                };
+                let id_opt = ctx.node.complete_node_id(&partial_id);
+                if let Some(id) = id_opt {
+                    ctx.start_vote(&id).await.unwrap();
+                } else {
+                    println!("error: couldn't find node id '{id_str}' or it was not unique");
+                }
             }
         }
         _ => {

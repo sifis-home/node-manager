@@ -288,6 +288,13 @@ impl Context {
         self.handle_responses(&msg_self_rejoin).await?;
         Ok(())
     }
+    pub async fn start_vote(&mut self, id: &[u8]) -> Result<(), Error> {
+        let ts = timestamp().map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        let msgs_vote = self.node.start_vote(ts, &id).map_err(|err| anyhow::anyhow!("{:?}", err))?;
+        self.handle_responses(&msgs_vote).await?;
+        Ok(())
+    }
+
     async fn handle_rekeying(&self, key: &[u8]) -> Result<(), Error> {
         let paths = self.cfg.rekeying_cfg_paths();
         log::info!("Rekeying: writing new shared key to {} files", paths.len());
@@ -296,7 +303,6 @@ impl Context {
         }
         Ok(())
     }
-
     pub fn lobby_local_peer_id_display(&self) -> impl Display + '_ {
         self.swarm.local_peer_id()
     }
