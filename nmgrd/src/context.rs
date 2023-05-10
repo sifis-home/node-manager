@@ -260,9 +260,9 @@ impl Context {
                 Response::Message(msg, from_members_network) => {
                     let msg = msg.serialize();
                     if *from_members_network {
-                        self.broadcast_lobby_msg(&msg)?;
-                    } else {
                         self.broadcast_members_msg(&msg).await?;
+                    } else {
+                        self.broadcast_lobby_msg(&msg)?;
                     }
                 }
                 Response::SetSharedKey(key) => self.handle_rekeying(key).await?,
