@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::lobby_network::{Swarm, LOBBY_TOPIC};
 use crate::ws_api::AsyncWebSocketDomoMessage;
+use crate::ws_api::SyncWebSocketDomoRequest;
 use crate::ws_context::WsContext;
 use anyhow::Error;
 use base64ct::{Base64, Encoding};
@@ -234,8 +235,9 @@ impl Context {
             "topic": MEMBERS_TOPIC,
             "content": msg_b64,
         });
+        let msg = SyncWebSocketDomoRequest::RequestPubMessage { value: msg_json };
         // The conversion here is not supposed to error:
-        let msg_json_str = serde_json::to_string(&msg_json)?;
+        let msg_json_str = serde_json::to_string(&msg)?;
         self.ws_conn.send(WsMessage::Text(msg_json_str)).await?;
         Ok(())
     }
