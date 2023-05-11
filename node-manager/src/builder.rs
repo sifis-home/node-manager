@@ -32,10 +32,6 @@ impl NodeManagerBuilder {
             shared_key,
         } = self;
         let key_pair = PrivateKey::from_pkcs8_der(&key_pair_pkcs8_der).unwrap();
-        /*let mut key_pair_pkcs8_der = key_pair_pkcs8_der.to_vec();
-        let local_key_pair = Keypair::rsa_from_pkcs8(&mut key_pair_pkcs8_der).unwrap();
-        let local_peer_id = PeerId::from(local_key_pair.public());
-        local_peer_id.to_bytes();*/
         let public_key_der = key_pair.to_public_key().to_public_key_der().unwrap();
 
         let node_id = node_id_generator(&public_key_der).unwrap();
