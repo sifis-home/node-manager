@@ -284,6 +284,8 @@ impl Context {
             .self_pause(timestamp().map_err(|err| anyhow::anyhow!("{:?}", err))?)
             .map_err(|err| anyhow::anyhow!("{:?}", err))?;
         self.handle_responses(&msg_self_pause).await?;
+        // Set an empty key to indicate that we have left.
+        self.handle_rekeying(&[]).await?;
         Ok(())
     }
     pub async fn self_rejoin(&mut self) -> Result<(), Error> {
