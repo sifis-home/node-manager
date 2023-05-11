@@ -114,7 +114,13 @@ impl Context {
             ws_msg = self.ws_conn.select_next_some() => {
                 let ws_msg = ws_msg?;
                 match ws_msg {
-                    WsMessage::Text(json_msg) => self.handle_ws_json_msg(&json_msg).await?,
+                    WsMessage::Text(json_msg) => match serde_json::from_str(&json_msg) {
+                        Ok(msg) => self.handle_ws_json_msg(msg).await?,
+                        Err(_err) => {
+                            log::warn!("Web socket received json message of invalid format: '{json_msg}'");
+                        }
+
+                    }
                     WsMessage::Close(_) => {
                         log::info!("Web socket connection closed, trying to connect again...");
                         // Reconnection handled by ws_conn
@@ -188,27 +194,20 @@ impl Context {
         );
         Ok(())
     }
-    async fn handle_ws_json_msg(&mut self, json_msg: &str) -> Result<(), Error> {
-        match serde_json::from_str(json_msg) {
-            Ok(msg) => {
-                let msg: AsyncWebSocketDomoMessage = msg;
-                match msg {
-                    AsyncWebSocketDomoMessage::Volatile { value } => {
-                        let topic_opt = value.get("topic").and_then(|topic| topic.as_str());
-                        if topic_opt == Some(MEMBERS_TOPIC) {
-                            if let Some(content) = value.get("content").and_then(|v| v.as_str()) {
-                                if let Ok(msg) = Base64::decode_vec(content) {
-                                    self.handle_members_msg(&msg).await?;
-                                }
-                            }
+    async fn handle_ws_json_msg(&mut self, msg: AsyncWebSocketDomoMessage) -> Result<(), Error> {
+        match msg {
+            AsyncWebSocketDomoMessage::Volatile { value } => {
+                let topic_opt = value.get("topic").and_then(|topic| topic.as_str());
+                if topic_opt == Some(MEMBERS_TOPIC) {
+                    if let Some(content) = value.get("content").and_then(|v| v.as_str()) {
+                        if let Ok(msg) = Base64::decode_vec(content) {
+                            self.handle_members_msg(&msg).await?;
                         }
                     }
-                    // We don't care about persistent messages
-                    AsyncWebSocketDomoMessage::Persistent { .. } => (),
                 }
             }
-            Err(_err) => {
-                log::warn!("Received json message of invalid format: '{json_msg}'");
+            AsyncWebSocketDomoMessage::Persistent { .. } => {
+                // We don't care
             }
         }
         Ok(())
