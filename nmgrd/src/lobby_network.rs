@@ -104,8 +104,7 @@ pub async fn start_with_topics(
             .idle_timeout(Duration::from_secs(60 * 60 * 24))
             .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
             .validation_mode(ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-            .message_id_fn(message_id_fn) // content-address messages. No two messages of the
-            // same content will be propagated.
+            .message_id_fn(message_id_fn)
             .build()
             .expect("Valid config");
 
@@ -122,7 +121,6 @@ pub async fn start_with_topics(
         }
 
         let behaviour = Behaviour { mdns, gossipsub };
-        //Swarm::new(transport, behaviour, local_peer_id)
 
         SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id).build()
     };
