@@ -13,6 +13,7 @@ use libp2p::{identity, mdns};
 use node_manager::keys::priv_key_pem_to_der;
 use node_manager::keys::PublicKey;
 use node_manager::{timestamp, NodeManager, NodeManagerBuilder, Response};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
 use tokio::time::{Interval, MissedTickBehavior};
@@ -115,12 +116,14 @@ impl Context {
             ws_msg = self.ws_conn.select_next_some() => {
                 let ws_msg = ws_msg?;
                 match ws_msg {
-                    WsMessage::Text(json_msg) => match serde_json::from_str(&json_msg) {
-                        Ok(msg) => self.handle_ws_json_msg(msg).await?,
-                        Err(_err) => {
+                    WsMessage::Text(json_msg) => {
+                        if let Ok(msg) = serde_json::from_str(&json_msg) {
+                            self.handle_ws_json_msg(msg).await?;
+                        } else if let Ok(msg) = serde_json::from_str(&json_msg) {
+                            self.handle_ws_sync_response(msg).await?;
+                        } else {
                             log::warn!("Web socket received json message of invalid format: '{json_msg}'");
                         }
-
                     }
                     WsMessage::Close(_) => {
                         log::info!("Web socket connection closed, trying to connect again...");
@@ -230,6 +233,53 @@ impl Context {
                 };
                 self.node
                     .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
+            }
+        }
+        Ok(())
+    }
+    async fn handle_ws_sync_response(
+        &mut self,
+        req: SyncWebSocketDomoRequest,
+    ) -> Result<(), Error> {
+        match req {
+            SyncWebSocketDomoRequest::Response { value } => {
+                let Some(arr) = value.as_array() else {
+                    log::warn!("Received invalid sync ws response from DHT");
+                    return Ok(());
+                };
+                #[derive(Deserialize)]
+                struct TopicEntry {
+                    topic_name: String,
+                    topic_uuid: String,
+                    value: serde_json::Value,
+                }
+                for val in arr.iter() {
+                    let Ok(entry) = TopicEntry::deserialize(val) else {
+                        log::warn!("Received invalid value in sync ws response from DHT: {val}");
+                        return Ok(());
+                    };
+                    if entry.topic_name != VOTE_SUGGESTION_TOPIC {
+                        log::info!(
+                            "Ignoring ws response for topic we didn't request: {}",
+                            entry.topic_name
+                        );
+                        return Ok(());
+                    }
+                    let Some(topic_key) = VoteSuggKey::parse(&entry.topic_uuid) else {
+                        log::warn!("Failed to parse vote suggestion: Can't parse UUID '{}'", entry.topic_uuid);
+                        return Ok(());
+                    };
+                    let Some(should_kick) = entry.value.get("kick").and_then(|v| v.as_bool()) else {
+                        log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
+                        return Ok(());
+                    };
+                    let deleted = false;
+                    self.node
+                        .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
+                }
+            }
+            _ => {
+                log::warn!("Received invalid sync ws msg from DHT");
             }
         }
         Ok(())
