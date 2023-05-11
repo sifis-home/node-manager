@@ -63,6 +63,7 @@ impl NodeManagerBuilder {
             // If a shared key is specified, this will be set later by set_init_random_shared_key
             state: ManagerState::WaitingForKey,
             vote_proposal: None,
+            vote_suggestions: HashMap::new(),
         };
 
         if let Some(k) = shared_key {

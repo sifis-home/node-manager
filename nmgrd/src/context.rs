@@ -19,6 +19,7 @@ use tokio::time::{Interval, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 const MEMBERS_TOPIC: &str = "node-manager-members";
+const VOTE_SUGGESTION_TOPIC: &str = "node-manager-kick-vote-sugg";
 
 pub struct Context {
     cfg: Config,
@@ -206,8 +207,29 @@ impl Context {
                     }
                 }
             }
-            AsyncWebSocketDomoMessage::Persistent { .. } => {
-                // We don't care
+            AsyncWebSocketDomoMessage::Persistent {
+                topic_name,
+                topic_uuid,
+                value,
+                deleted,
+            } => {
+                if topic_name != VOTE_SUGGESTION_TOPIC {
+                    return Ok(());
+                }
+                let Some(topic_key) = VoteSuggKey::parse(&topic_uuid) else {
+                    log::warn!("Failed to parse vote suggestion: Can't parse UUID '{topic_uuid}'");
+                    return Ok(());
+                };
+                if topic_key.caster_id != self.node.node_id() {
+                    // We aren't really interested in suggestions for other nodes
+                    return Ok(());
+                }
+                let Some(should_kick) = value.get("kick").and_then(|v| v.as_bool()) else {
+                    log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
+                    return Ok(());
+                };
+                self.node
+                    .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
             }
         }
         Ok(())
@@ -332,4 +354,40 @@ impl Context {
         }
         ret
     }
+}
+
+struct VoteSuggKey {
+    caster_id: Vec<u8>,
+    subject: Vec<u8>,
+}
+
+impl VoteSuggKey {
+    /// Parses a key in the form <node-caster>:<casted-upon>
+    fn parse(key: &str) -> Option<Self> {
+        let mut it = key.split(':');
+        let caster_str = it.next()?;
+        let subject_str = it.next()?;
+        let caster_id = parse_hex(caster_str)?;
+        let subject = parse_hex(subject_str)?;
+        Some(VoteSuggKey { caster_id, subject })
+    }
+}
+
+fn parse_hex(s: &str) -> Option<Vec<u8>> {
+    let mut res = Vec::new();
+    for byte_hex in s.as_bytes().chunks(2) {
+        let hex_digit = |byte| {
+            Some(match byte {
+                b'0'..=b'9' => byte - b'0',
+                b'a'..=b'f' => byte - b'a' + 10,
+                _ => return None,
+            })
+        };
+        if let (Some(hi), Some(lo)) = (hex_digit(byte_hex[0]), hex_digit(byte_hex[1])) {
+            res.push((hi << 4) | lo);
+        } else {
+            return None;
+        }
+    }
+    Some(res)
 }

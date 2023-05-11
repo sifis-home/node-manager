@@ -294,6 +294,7 @@ pub struct NodeManager {
     state: ManagerState,
     vote_proposal: Option<VoteProposal>,
     // TODO: table storing voting proposal cooldowns for nodes
+    vote_suggestions: HashMap<Vec<u8>, bool>,
 }
 
 impl NodeManager {
@@ -477,27 +478,36 @@ impl NodeManager {
         ])
     }
     fn decide_vote(&self, op: &VoteOperation, timestamp: u64) -> Descision {
-        // Default: accept, but deny in 1/8 of cases
-        // TODO: implement a trust based scheme here, instead of just random choice.
-        fn rng(this: &NodeManager, timestamp: u64) -> bool {
-            let tbl_hash = this.table_hash();
-            let mut hasher = Sha256::new();
-            hasher.update(tbl_hash);
-            hasher.update(&this.node_id);
-            hasher.update(timestamp.to_be_bytes());
-            let hash = hasher.finalize().to_vec();
-            hash[0] & 0b111 == 0
-        }
         let VoteOperation::Remove(id) = op;
         if id == &self.node_id {
             // Obviously, if this is about *ourselves* being kicked out,
             // argue against it.
             return Descision::No;
         }
-        if rng(self, timestamp) {
-            Descision::No
+        if let Some(sugg) = self.vote_suggestions.get(id) {
+            if *sugg {
+                Descision::Yes
+            } else {
+                Descision::No
+            }
         } else {
-            Descision::Yes
+            // Fallback to rng if the suggestion is not stored
+            // Default: accept, but deny in 1/8 of cases
+            // TODO: implement a trust based scheme here, instead of just random choice.
+            fn rng(this: &NodeManager, timestamp: u64) -> bool {
+                let tbl_hash = this.table_hash();
+                let mut hasher = Sha256::new();
+                hasher.update(tbl_hash);
+                hasher.update(&this.node_id);
+                hasher.update(timestamp.to_be_bytes());
+                let hash = hasher.finalize().to_vec();
+                hash[0] & 0b111 == 0
+            }
+            if rng(self, timestamp) {
+                Descision::No
+            } else {
+                Descision::Yes
+            }
         }
     }
 
@@ -612,6 +622,31 @@ impl NodeManager {
         self.vote_proposal = Some(proposal);
 
         Ok(vec![Response::Message(msg, true)])
+    }
+
+    pub fn save_vote_suggestion(
+        &mut self,
+        subject: &[u8],
+        should_kick: bool,
+        deleted: bool,
+    ) -> Result<()> {
+        let entry = self.vote_suggestions.entry(subject.to_vec());
+        if deleted {
+            if let Entry::Occupied(e) = entry {
+                e.remove_entry();
+            }
+        } else {
+            // TODO use Entry::insert_entry function once that's stable
+            match entry {
+                Entry::Occupied(mut e) => {
+                    e.insert(should_kick);
+                }
+                Entry::Vacant(e) => {
+                    e.insert(should_kick);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Handles the message
