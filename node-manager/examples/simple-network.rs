@@ -333,7 +333,7 @@ fn parse_hex(s: &str) -> Option<Vec<u8>> {
     let mut res = Vec::new();
     for v in 0..(s.len() / 2) {
         let byte_str = s.get((v * 2)..)?.get(..2)?;
-        let byte = u8::from_str_radix(&byte_str, 16).ok()?;
+        let byte = u8::from_str_radix(byte_str, 16).ok()?;
         res.push(byte);
     }
     Some(res)
