@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use backon::{ExponentialBuilder, Retryable};
 use core::time::Duration;
 use libp2p::futures::{SinkExt, StreamExt};
@@ -67,11 +67,15 @@ impl WsContext {
             };
             let msg = match conn.select_next_some().await {
                 Ok(v) => v,
+                Err(TsError::Io(e)) if e.kind() == ErrorKind::ConnectionReset => {
+                    self.ws_conn = None;
+                    continue;
+                }
                 Err(TsError::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => {
                     self.ws_conn = None;
                     continue;
                 }
-                e => e?,
+                e => e.with_context(|| format!("Error connecting to websocket '{}'", self.url))?,
             };
             if msg.is_close() {
                 self.ws_conn = None;
