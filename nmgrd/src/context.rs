@@ -20,8 +20,8 @@ use tokio::time::sleep;
 use tokio::time::{Interval, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
-const MEMBERS_TOPIC: &str = "node-manager-members";
-const VOTE_SUGGESTION_TOPIC: &str = "node-manager-kick-vote-sugg";
+const MEMBERS_TOPIC: &str = "SIFIS:node-manager-members";
+const VOTE_SUGGESTION_TOPIC: &str = "SIFIS:node-manager-kick-vote-sugg";
 
 pub struct Context {
     cfg: Config,
