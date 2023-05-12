@@ -331,19 +331,10 @@ fn make_stdin_thread() -> Receiver<String> {
 
 fn parse_hex(s: &str) -> Option<Vec<u8>> {
     let mut res = Vec::new();
-    for byte_hex in s.as_bytes().chunks(2) {
-        let hex_digit = |byte| {
-            Some(match byte {
-                b'0'..=b'9' => byte - b'0',
-                b'a'..=b'f' => byte - b'a' + 10,
-                _ => return None,
-            })
-        };
-        if let (Some(hi), Some(lo)) = (hex_digit(byte_hex[0]), hex_digit(byte_hex[1])) {
-            res.push((hi << 4) | lo);
-        } else {
-            return None;
-        }
+    for v in 0..(s.len() / 2) {
+        let byte_str = s.get((v * 2)..)?.get(..2)?;
+        let byte = u8::from_str_radix(&byte_str, 16).ok()?;
+        res.push(byte);
     }
     Some(res)
 }
