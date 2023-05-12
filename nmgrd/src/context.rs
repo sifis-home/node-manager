@@ -116,7 +116,8 @@ impl Context {
                     if since_start > WAIT_UNTIL_SET_OWN && !self.cfg.no_auto_first_node() {
                         // Assume that we are the first node and generate our own shared key
                         log::info!("Didn't get any responses on lobby network. Setting shared key to a random one, assuming we are the first node.");
-                        self.node.set_random_shared_key();
+                        let key = self.node.set_random_shared_key().to_vec();
+                        self.handle_rekeying(&key).await?;
                     }
                 }
             }

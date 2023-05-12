@@ -397,12 +397,16 @@ impl NodeManager {
     ///
     /// This function is supposed to be called when the node manager is the first one in the network,
     /// at the point of time when the code running the node decides that the node is likely the first one.
-    pub fn set_random_shared_key(&mut self) {
+    ///
+    /// The returned slice is the shared key. If you get into problems with the mutable reference still being held,
+    /// we recommend using the [shared_key](Self::shared_key) function as an alternative (or copying).
+    pub fn set_random_shared_key(&mut self) -> &[u8] {
         if !self.shared_key.is_empty() {
             log::info!("Tried to set random shared key, but the shared key is already set!");
-            return;
+            return &self.shared_key;
         }
-        self.set_init_random_shared_key(gen_shared_key().to_vec())
+        self.set_init_random_shared_key(gen_shared_key().to_vec());
+        &self.shared_key
     }
     // This function is only supposed to be called upon initial shared key settings.
     // it is wrong to call it for rekeying!
