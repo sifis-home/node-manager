@@ -94,8 +94,8 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
         // TODO turn this into an if-let guard once those are stable
         "start-vote" => {
             if let Some(id_str) = args.next() {
-                let partial_id = config::parse_hex_key(id_str);
-                let Ok(partial_id) = partial_id else {
+                let partial_id = parse_hex(id_str);
+                let Some(partial_id) = partial_id else {
                     println!("invalid hex array: '{id_str}'");
                     return
                 };
@@ -115,4 +115,15 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             println!("start-vote <id>");
         }
     }
+}
+
+// We cannot use config::parse_hex_key here because it expects a certain length
+fn parse_hex(s: &str) -> Option<Vec<u8>> {
+    let mut res = Vec::new();
+    for v in 0..(s.len() / 2) {
+        let byte_str = s.get((v * 2)..)?.get(..2)?;
+        let byte = u8::from_str_radix(&byte_str, 16).ok()?;
+        res.push(byte);
+    }
+    Some(res)
 }
