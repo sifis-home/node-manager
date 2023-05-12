@@ -374,7 +374,7 @@ impl Context {
         // But do this only after a delay to make sure we got the earlier message out on the DHT.
         // Ideally we'd wait for the confirmation by the DHT that it got sent or such... but
         // there is no such mechanism so we just delay by a constant amount of time instead.
-        sleep(Duration::from_millis(100)).await;
+        sleep(Duration::from_millis(250)).await;
         self.handle_rekeying(Some(&[])).await?;
         Ok(())
     }
