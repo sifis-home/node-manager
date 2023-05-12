@@ -228,7 +228,8 @@ jobs:
     - name: Get coverage data for codecov
       run: |
         grcov . --binary-path ./target/debug/ -s . -t lcov --branch \
-              --ignore-not-existing --ignore "/*" --ignore "../*" -o lcov.info
+              --ignore-not-existing --ignore "/*" --ignore "../*" \
+              --ignore "node-manager/examples" -o lcov.info
 
     - name: Codecov upload
       uses: codecov/codecov-action@v3
@@ -241,7 +242,7 @@ jobs:
         rm -rf lcov.info
         grcov . --binary-path ./target/debug/ -s . -t covdir --branch \
               --token YOUR_COVDIR_TOKEN --ignore-not-existing --ignore "/*" \
-              --ignore "../*" -o covdir.json
+              --ignore "../*" --ignore "node-manager/examples" -o covdir.json
 
     - name: Evaluate code coverage value
       shell: bash
@@ -314,7 +315,8 @@ jobs:
 
     - name: Run grcov
       run: |
-        grcov . --binary-path ./target/debug/ -t coveralls -s . --token YOUR_COVERALLS_TOKEN -o coveralls.json
+        grcov . --binary-path ./target/debug/ -t coveralls -s . --token YOUR_COVERALLS_TOKEN \
+          --ignore "node-manager/examples" -o coveralls.json
 
     - name: Run weighted-code-coverage
       run: |
