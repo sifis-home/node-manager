@@ -38,7 +38,7 @@ impl WsContext {
         .retry(
             &ExponentialBuilder::default()
                 .with_max_times(usize::MAX)
-                .with_min_delay(Duration::from_millis(150))
+                .with_min_delay(Duration::from_millis(500))
                 .with_max_delay(Duration::from_millis(15_000)),
         )
         .when(|e| {
