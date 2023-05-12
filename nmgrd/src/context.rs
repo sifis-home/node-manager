@@ -98,6 +98,9 @@ impl Context {
         })
         .await?;
 
+        // Set the key for the DHT, for the case the config file is desynchronized
+        this.handle_rekeying(None).await?;
+
         Ok(this)
     }
     pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
@@ -117,8 +120,8 @@ impl Context {
                     if since_start > WAIT_UNTIL_SET_OWN && !self.cfg.no_auto_first_node() {
                         // Assume that we are the first node and generate our own shared key
                         log::info!("Didn't get any responses on lobby network. Setting shared key to a random one, assuming we are the first node.");
-                        let key = self.node.set_random_shared_key().to_vec();
-                        self.handle_rekeying(&key).await?;
+                        self.node.set_random_shared_key();
+                        self.handle_rekeying(None).await?;
                     }
                 }
             }
@@ -355,7 +358,7 @@ impl Context {
                         self.broadcast_lobby_msg(&msg)?;
                     }
                 }
-                Response::SetSharedKey(key) => self.handle_rekeying(key).await?,
+                Response::SetSharedKey(key) => self.handle_rekeying(Some(key)).await?,
             }
         }
         Ok(())
@@ -372,7 +375,7 @@ impl Context {
         // Ideally we'd wait for the confirmation by the DHT that it got sent or such... but
         // there is no such mechanism so we just delay by a constant amount of time instead.
         sleep(Duration::from_millis(100)).await;
-        self.handle_rekeying(&[]).await?;
+        self.handle_rekeying(Some(&[])).await?;
         Ok(())
     }
     pub async fn self_rejoin(&mut self) -> Result<(), Error> {
@@ -393,7 +396,12 @@ impl Context {
         Ok(())
     }
 
-    async fn handle_rekeying(&self, key: &[u8]) -> Result<(), Error> {
+    async fn handle_rekeying(&self, key_override: Option<&[u8]>) -> Result<(), Error> {
+        let key = if let Some(key) = key_override {
+            key
+        } else {
+            self.node.shared_key()
+        };
         let paths = self.cfg.rekeying_cfg_paths();
         log::info!("Rekeying: writing new shared key to {} files", paths.len());
         for path in paths {
