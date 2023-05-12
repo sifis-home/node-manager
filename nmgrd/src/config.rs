@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::fs::read_to_string;
 use toml_edit::Document;
 use url::Url;
 
@@ -117,7 +118,7 @@ impl Config {
             return Ok(admin_key.clone());
         }
         if let Some(admin_key_path) = &self.admin_key_path {
-            let admin_key_str = std::fs::read_to_string(admin_key_path)?;
+            let admin_key_str = read_to_string(admin_key_path)?;
             return Ok(admin_key_str);
         }
         panic!("Invalid config: admin_key or admin_key_path required.");
@@ -128,7 +129,7 @@ impl Config {
             return Ok(priv_key.clone());
         }
         if let Some(priv_key_path) = &self.priv_key_path {
-            let priv_key_str = std::fs::read_to_string(priv_key_path)?;
+            let priv_key_str = read_to_string(priv_key_path)?;
             return Ok(priv_key_str);
         }
         panic!("Invalid config: priv_key or priv_key_path required.");
@@ -139,7 +140,7 @@ impl Config {
             return Ok(admin_join_msg.clone());
         }
         if let Some(admin_join_msg_path) = &self.admin_join_msg_path {
-            let admin_join_msg_str = std::fs::read_to_string(admin_join_msg_path)?;
+            let admin_join_msg_str = read_to_string(admin_join_msg_path)?;
             return Ok(admin_join_msg_str);
         }
         panic!("Invalid config: admin_join_msg or admin_join_msg_path required.");
@@ -177,7 +178,7 @@ impl Config {
 }
 
 pub fn set_new_key_for_file(cfg_path: &str, key: &[u8]) -> Result<()> {
-    let file_str = std::fs::read_to_string(cfg_path)?;
+    let file_str = read_to_string(cfg_path)?;
     let mut doc = file_str.parse::<Document>()?;
 
     let hex_key = key.iter().map(|b| format!("{b:02x}")).collect::<String>();
