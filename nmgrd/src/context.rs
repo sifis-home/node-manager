@@ -80,7 +80,7 @@ impl Context {
         let start_time = Instant::now();
         let never_had_key = node.shared_key().is_empty();
 
-        Ok(Self {
+        let mut this = Self {
             cfg,
             cfg_path,
             swarm,
@@ -90,7 +90,14 @@ impl Context {
             interval,
             start_time,
             never_had_key,
+        };
+
+        this.send_ws_msg(SyncWebSocketDomoRequest::RequestGetTopicName {
+            topic_name: VOTE_SUGGESTION_TOPIC.to_string(),
         })
+        .await?;
+
+        Ok(this)
     }
     pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
         tokio::select!(
@@ -284,7 +291,6 @@ impl Context {
         }
         Ok(())
     }
-
     pub async fn broadcast_admin_join_msg(&mut self) -> Result<(), Error> {
         let admin_join_msg = self.cfg.admin_join_msg()?;
         let msg = Base64::decode_vec(&admin_join_msg)?;
@@ -310,7 +316,11 @@ impl Context {
             "topic": MEMBERS_TOPIC,
             "content": msg_b64,
         });
-        let msg = SyncWebSocketDomoRequest::RequestPubMessage { value: msg_json };
+        self.send_ws_msg(SyncWebSocketDomoRequest::RequestPubMessage { value: msg_json })
+            .await?;
+        Ok(())
+    }
+    async fn send_ws_msg(&mut self, msg: SyncWebSocketDomoRequest) -> Result<(), Error> {
         // The conversion here is not supposed to error:
         let msg_json_str = serde_json::to_string(&msg)?;
         self.ws_conn.send(WsMessage::Text(msg_json_str)).await?;
