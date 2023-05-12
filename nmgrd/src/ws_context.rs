@@ -2,6 +2,7 @@ use anyhow::Result;
 use backon::{ExponentialBuilder, Retryable};
 use core::time::Duration;
 use libp2p::futures::{SinkExt, StreamExt};
+use std::collections::VecDeque;
 use std::io::ErrorKind;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{
@@ -15,6 +16,7 @@ type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub struct WsContext {
     url: String,
     ws_conn: Option<WsStream>,
+    send_queue: VecDeque<WsMessage>,
 }
 
 impl WsContext {
@@ -22,11 +24,12 @@ impl WsContext {
         let this = Self {
             url: url.to_string(),
             ws_conn: None,
+            send_queue: VecDeque::new(),
         };
         Ok(this)
     }
     async fn connect(&mut self) -> Result<&mut WsStream> {
-        let (ws_conn, _resp) = (|| async {
+        let (mut ws_conn, _resp) = (|| async {
             log::info!("Attempting ws connection to {}", self.url);
             let res: Result<_> = Ok(connect_async(&self.url).await?);
             log::info!("Ws connection to {} established", self.url);
@@ -48,6 +51,9 @@ impl WsContext {
             e.kind() == ErrorKind::ConnectionRefused
         })
         .await?;
+        while let Some(msg) = self.send_queue.pop_front() {
+            ws_conn.send(msg).await?;
+        }
         Ok(self.ws_conn.insert(ws_conn))
     }
     pub async fn select_next_some(&mut self) -> Result<WsMessage> {
@@ -74,12 +80,12 @@ impl WsContext {
         }
     }
     pub async fn send(&mut self, msg: WsMessage) -> Result<()> {
-        let conn = if let Some(conn) = &mut self.ws_conn {
-            conn
+        if let Some(conn) = &mut self.ws_conn {
+            conn.send(msg).await?;
         } else {
-            self.connect().await?
-        };
-        conn.send(msg).await?;
+            self.send_queue.push_back(msg);
+        }
+
         Ok(())
     }
 }
