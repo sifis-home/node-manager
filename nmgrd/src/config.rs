@@ -180,7 +180,7 @@ pub fn set_new_key_for_file(cfg_path: &str, key: &[u8]) -> Result<()> {
     let file_str = std::fs::read_to_string(cfg_path)?;
     let mut doc = file_str.parse::<Document>()?;
 
-    let hex_key = key.iter().map(|b| format!("{b:00x}")).collect::<String>();
+    let hex_key = key.iter().map(|b| format!("{b:02x}")).collect::<String>();
     doc["shared_key"] = toml_edit::value(hex_key);
 
     std::fs::write(cfg_path, doc.to_string())?;
