@@ -181,6 +181,12 @@ pub fn set_new_key_for_file(cfg_path: &str, key: &[u8]) -> Result<()> {
     let mut doc = file_str.parse::<Document>()?;
 
     let hex_key = key.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    if let Some(present_key_item) = doc.get("shared_key") {
+        if present_key_item.as_str() == Some(&hex_key) {
+            // Nothing to do, the key we want to set is already the one present in the file
+            return Ok(());
+        }
+    }
     doc["shared_key"] = toml_edit::value(hex_key);
 
     std::fs::write(cfg_path, doc.to_string())?;
