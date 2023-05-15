@@ -243,7 +243,7 @@ impl Context {
                     log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
                     return Ok(());
                 };
-                log::info!("saving vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", topic_key.subject);
+                log::info!("saving vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
                 self.node
                     .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
             }
@@ -287,7 +287,7 @@ impl Context {
                         return Ok(());
                     };
                     let deleted = false;
-                    log::info!("saving initial vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", topic_key.subject);
+                    log::info!("saving initial vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
                     self.node
                         .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
                 }
@@ -436,6 +436,10 @@ impl Context {
         }
         ret
     }
+}
+
+pub(crate) fn fmt_hex_arr(arr: &[u8]) -> String {
+    arr.iter().map(|v| format!("{v:02x}")).collect()
 }
 
 struct VoteSuggKey {

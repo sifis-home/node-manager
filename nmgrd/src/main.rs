@@ -77,7 +77,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             let node = &ctx.node;
             println!(
                 "Own node manager ID: {:?}",
-                NodeId::from_data(node.node_id())
+                context::fmt_hex_arr(node.node_id())
             );
             // TODO find a better way to print the hex array
             println!("Shared key: {:?}", NodeId::from_data(node.shared_key()));
