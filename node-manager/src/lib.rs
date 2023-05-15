@@ -495,6 +495,7 @@ impl NodeManager {
                 Descision::No
             }
         } else {
+            log::info!("Falling back to random generator for voting descision on {id:?}.");
             // Fallback to rng if the suggestion is not stored
             // Default: accept, but deny in 1/8 of cases
             // TODO: implement a trust based scheme here, instead of just random choice.
