@@ -41,7 +41,8 @@ impl Context {
         fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
             let mut hasher = Sha256::new();
             hasher.update(data);
-            let bytes = hasher.finalize()[..8].to_vec();
+            let bytes = hasher.finalize().to_vec();
+            assert_eq!(bytes.len(), 32);
             Ok(bytes)
         }
 
