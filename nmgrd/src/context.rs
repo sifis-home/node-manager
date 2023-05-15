@@ -243,6 +243,7 @@ impl Context {
                     log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
                     return Ok(());
                 };
+                log::info!("saving vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", topic_key.subject);
                 self.node
                     .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
             }
@@ -286,6 +287,7 @@ impl Context {
                         return Ok(());
                     };
                     let deleted = false;
+                    log::info!("saving initial vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", topic_key.subject);
                     self.node
                         .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
                 }
