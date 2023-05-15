@@ -1,7 +1,6 @@
 use crate::config::Config;
 use crate::context::Context;
 use anyhow::{bail, Context as _, Error};
-use node_manager::NodeId;
 use tokio::io::AsyncBufReadExt;
 
 mod config;
@@ -76,11 +75,10 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
         "info" | "i" | "t" => {
             let node = &ctx.node;
             println!(
-                "Own node manager ID: {:?}",
+                "Own node manager ID: {}",
                 context::fmt_hex_arr(node.node_id())
             );
-            // TODO find a better way to print the hex array
-            println!("Shared key: {:?}", NodeId::from_data(node.shared_key()));
+            println!("Shared key: {}", context::fmt_hex_arr(node.shared_key()));
             println!("Node manager table: {}", node.table_str());
             println!("Own lobby ID: {}", ctx.lobby_local_peer_id_display());
             println!("Lobby peers: {}", ctx.lobby_peer_table_str());
