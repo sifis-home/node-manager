@@ -25,6 +25,12 @@ pub(crate) fn parse_hex_key(s: &str) -> Result<[u8; KEY_SIZE], String> {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct RekeyingPath {
+    file: String,
+    config: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct Config {
     dht_url: String,
 
@@ -38,7 +44,7 @@ pub struct Config {
     admin_join_msg: Option<String>,
 
     #[serde(default)]
-    rekeying_cfg_paths: Vec<String>,
+    rekeying_cfg_paths: Vec<RekeyingPath>,
 
     lobby_key: String,
 
@@ -146,7 +152,7 @@ impl Config {
         panic!("Invalid config: admin_join_msg or admin_join_msg_path required.");
     }
 
-    pub fn rekeying_cfg_paths(&self) -> &[String] {
+    pub fn rekeying_cfg_paths(&self) -> &[RekeyingPath] {
         &self.rekeying_cfg_paths
     }
 
@@ -177,20 +183,27 @@ impl Config {
     }
 }
 
-pub fn set_new_key_for_file(cfg_path: &str, key: &[u8]) -> Result<()> {
-    let file_str = read_to_string(cfg_path)?;
+pub fn set_new_key_for_path(path: &RekeyingPath, key: &[u8]) -> Result<()> {
+    let config = path.config.as_deref().unwrap_or("shared_key");
+    let file_str = read_to_string(&path.file)?;
     let mut doc = file_str.parse::<Document>()?;
 
     let hex_key = key.iter().map(|b| format!("{b:02x}")).collect::<String>();
-    if let Some(present_key_item) = doc.get("shared_key") {
-        if present_key_item.as_str() == Some(&hex_key) {
-            // Nothing to do, the key we want to set is already the one present in the file
-            return Ok(());
+    let members = config.split('.');
+    let mut view = doc.as_item_mut();
+    for member in members {
+        if view.is_none() {
+            *view = toml_edit::Item::Table(toml_edit::Table::new());
         }
+        view = &mut view[member];
     }
-    doc["shared_key"] = toml_edit::value(hex_key);
+    if view.as_str() == Some(&hex_key) {
+        // Nothing to do, the key we want to set is already the one present in the file
+        return Ok(());
+    }
+    *view = toml_edit::value(hex_key);
 
-    std::fs::write(cfg_path, doc.to_string())?;
+    std::fs::write(&path.file, doc.to_string())?;
     Ok(())
 }
 
@@ -217,7 +230,7 @@ mod test {
             priv_key_path = "/path/to/admin-pub-key.pem"
             admin_join_msg_path = "/path/to/admin-join-msg.base64"
             lobby_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-            rekeying_cfg_paths = ["/path/1.toml", "/path/2.toml"]
+            rekeying_cfg_paths = [{ file = "/path/1.toml" }, { file = "/path/2.toml", config = "hi.hello" }]
             shared_key = "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
             lobby_loopback_only = false
             no_auto_first_node = true

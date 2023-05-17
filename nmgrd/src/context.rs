@@ -414,7 +414,7 @@ impl Context {
         let paths = self.cfg.rekeying_cfg_paths();
         log::info!("Rekeying: writing new shared key to {} files", paths.len());
         for path in paths {
-            crate::config::set_new_key_for_file(path, key)?;
+            crate::config::set_new_key_for_path(path, key)?;
         }
         Ok(())
     }
