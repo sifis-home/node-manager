@@ -52,7 +52,7 @@ fn make_test_files(count: u16, dir: &str) -> Result<()> {
 
 fn main() {
     let count = std::env::args()
-        .next()
+        .nth(1)
         .and_then(|n_str| u16::from_str(&n_str).ok())
         .unwrap_or(5);
     let dir = std::env::args().nth(2).unwrap_or_else(|| ".".to_string());
