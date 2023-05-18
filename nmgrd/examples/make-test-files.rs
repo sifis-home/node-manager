@@ -47,6 +47,7 @@ fn make_test_files(count: u16, dir: &str) -> Result<()> {
         let cfg_toml = toml::to_string(&cfg)?;
         write_file(format!("{dir}/config-{i:02}.toml"), cfg_toml)?;
     }
+    println!("Admin private key: {}", admin_key.to_pkcs8_pem().unwrap());
     Ok(())
 }
 
