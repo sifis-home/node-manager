@@ -20,11 +20,17 @@ struct Config {
 
 const INIT_SHARED_KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
-fn make_test_files(count: u16, dir: &str) -> Result<()> {
-    let admin_key = PrivateKey::generate_ed25519();
-    let admin_key_der = admin_key.to_pkcs8_der().unwrap();
-    let admin_key_public_pem = admin_key.to_public_key().to_pkcs8_pem().unwrap();
-    let admin_node = AdminNode::from_key_pair_der(&admin_key_der);
+fn make_test_files(count: u16, dir: &str, admin_key_pem: Option<String>) -> Result<()> {
+    let admin_key_pem = admin_key_pem.unwrap_or_else(|| {
+        let admin_key = PrivateKey::generate_ed25519();
+        admin_key.to_pkcs8_pem().unwrap()
+    });
+    let admin_key_public_pem = PrivateKey::from_pkcs8_pem(&admin_key_pem)
+        .unwrap()
+        .to_public_key()
+        .to_pkcs8_pem()
+        .unwrap();
+    let admin_node = AdminNode::from_key_pair_pem(&admin_key_pem);
     for i in 0..count {
         let priv_key = PrivateKey::generate_ed25519();
         let node_key_pub_der = priv_key.to_public_key().to_public_key_der().unwrap();
@@ -45,9 +51,13 @@ fn make_test_files(count: u16, dir: &str) -> Result<()> {
             lobby_loopback_only: false,
         };
         let cfg_toml = toml::to_string(&cfg)?;
-        write_file(format!("{dir}/config-{i:02}.toml"), cfg_toml)?;
+        let toml_with_comment = format!(
+            "\n# Admin key:\n# {}\n{cfg_toml}",
+            admin_key_pem.replace("\n", "\n# ")
+        );
+        write_file(format!("{dir}/config-{i:02}.toml"), toml_with_comment)?;
     }
-    println!("Admin private key: {}", admin_key.to_pkcs8_pem().unwrap());
+    println!("Admin private key: {admin_key_pem}");
     Ok(())
 }
 
@@ -57,5 +67,6 @@ fn main() {
         .and_then(|n_str| u16::from_str(&n_str).ok())
         .unwrap_or(5);
     let dir = std::env::args().nth(2).unwrap_or_else(|| ".".to_string());
-    make_test_files(count, &dir).unwrap();
+    let admin_key_pem = std::env::args().nth(3);
+    make_test_files(count, &dir, admin_key_pem).unwrap();
 }

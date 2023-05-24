@@ -19,6 +19,13 @@ impl AdminNode {
             key_pair_der: der.to_vec(),
         }
     }
+    pub fn from_key_pair_pem(pem: &str) -> Self {
+        let key_pair = PrivateKey::from_pkcs8_pem(pem).unwrap();
+        Self {
+            key_pair_der: key_pair.to_pkcs8_der().unwrap(),
+            key_pair,
+        }
+    }
     pub fn sign_addition(&self, node_to_add_der_key: &[u8], timestamp: u64) -> Result<Message> {
         sign_addition(&self.key_pair, node_to_add_der_key, timestamp)
     }
