@@ -654,6 +654,15 @@ impl NodeManager {
         Ok(())
     }
 
+    pub fn make_keepalive(&self, timestamp: u64) -> Result<Vec<Response>> {
+        let op = Operation::KeepAlive(self.table_hash());
+        let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+            log::info!("Couldn't sign vote proposal msg.");
+            return Ok(Vec::new());
+        };
+        Ok(vec![Response::Message(msg, true)])
+    }
+
     /// Handles the message
     ///
     /// Same as [`handle_msg_ts`](Self::handle_msg_ts), but the timestamp is set

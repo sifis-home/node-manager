@@ -115,6 +115,9 @@ impl Context {
             _ = self.interval.tick() => {
                 if !self.node.shared_key().is_empty() {
                     self.never_had_key = false;
+
+                    let resp = self.node.make_keepalive(timestamp()?)?;
+                    self.handle_responses(&resp).await?;
                 }
                 if self.never_had_key {
                     let peers_count = self.swarm.behaviour().gossipsub.all_peers().count();
