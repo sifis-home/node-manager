@@ -34,6 +34,7 @@ pub struct Context {
     interval: Interval,
     start_time: Instant,
     never_had_key: bool,
+    wait_until_set_own: Duration,
 }
 
 impl Context {
@@ -82,6 +83,10 @@ impl Context {
         let start_time = Instant::now();
         let never_had_key = node.shared_key().is_empty();
 
+        // This is a random value that we set between 10 seconds and 25 seconds.
+        let rand_add = rand::random::<f64>() * 15_000.0;
+        let wait_until_set_own = Duration::from_millis(10_000 + rand_add as u64);
+
         let mut this = Self {
             cfg,
             cfg_path,
@@ -92,6 +97,7 @@ impl Context {
             interval,
             start_time,
             never_had_key,
+            wait_until_set_own,
         };
 
         this.send_ws_msg(SyncWebSocketDomoRequest::RequestGetTopicName {
@@ -116,9 +122,8 @@ impl Context {
                         log::info!("Broadcasting admin join message to {} peers", peers_count);
                         self.broadcast_admin_join_msg().await?;
                     }
-                    const WAIT_UNTIL_SET_OWN: Duration = Duration::from_millis(15_000);
                     let since_start = Instant::now() - self.start_time;
-                    if since_start > WAIT_UNTIL_SET_OWN && !self.cfg.no_auto_first_node() {
+                    if since_start > self.wait_until_set_own && !self.cfg.no_auto_first_node() {
                         // Assume that we are the first node and generate our own shared key
                         log::info!("Didn't get any responses on lobby network. Setting shared key to a random one, assuming we are the first node.");
                         self.node.set_random_shared_key();
