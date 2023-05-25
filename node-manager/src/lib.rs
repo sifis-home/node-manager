@@ -563,7 +563,7 @@ impl NodeManager {
                     return Descision::No;
                 };
                 if since_last_seen > self.thresholds.max_seen_time.0 {
-                    return Descision::No;
+                    return Descision::Yes;
                 }
                 return Descision::No;
             }
@@ -649,7 +649,10 @@ impl NodeManager {
     /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
     /// the message.
     pub fn start_vote(&mut self, timestamp: u64, to_remove_id: &[u8]) -> Result<Vec<Response>> {
-        let operation = VoteOperation::Remove(to_remove_id.to_owned());
+        self.start_vote_op(timestamp, VoteOperation::Remove(to_remove_id.to_owned()))
+    }
+
+    fn start_vote_op(&mut self, timestamp: u64, operation: VoteOperation) -> Result<Vec<Response>> {
         let op = Operation::VoteProposal(operation.clone());
         let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
             log::info!("Couldn't sign vote proposal msg.");
@@ -723,19 +726,29 @@ impl NodeManager {
     /// The `add_val` is some random value used to add to the threshold,
     /// to prevent multiple nodes from starting votes on the same time.
     pub fn check_timeouts(&mut self, timestamp: u64, add_val: u64) -> Result<Vec<Response>> {
+        // If there is ongoing vote proposals, don't bring up anything new
+        if self.vote_proposal.is_some() {
+            return Ok(Vec::new());
+        }
         let max_seen_time_red = self.thresholds.max_seen_time.1;
         let mut res = Vec::new();
+        let mut nids = Vec::new();
         for (nid, nd_entry) in self.nodes.iter() {
-            let Some(time_since_last) = timestamp.checked_sub(nd_entry.last_seen_time) else { continue };
-            if time_since_last > max_seen_time_red {
-                log::info!("Starting vote on pausing timed out node {nid:?}.");
-                let op = Operation::VoteProposal(VoteOperation::Pause(nid.0.to_owned()));
-                let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
-                    log::info!("Couldn't sign pause vote proposal msg.");
-                    return Ok(Vec::new());
-                };
-                res.push(Response::Message(msg, true));
+            if nid.0 == self.node_id {
+                continue;
             }
+            if nd_entry.status != NodeStatus::Member {
+                continue;
+            }
+            let Some(time_since_last) = timestamp.checked_sub(nd_entry.last_seen_time) else { continue };
+            if time_since_last > max_seen_time_red + add_val {
+                log::info!("Starting vote on pausing timed out node {nid:?}.");
+                nids.push(nid.0.to_owned());
+            }
+        }
+        for nid in nids {
+            let op = VoteOperation::Pause(nid);
+            res.extend(self.start_vote_op(timestamp, op)?.into_iter());
         }
         Ok(res)
     }
