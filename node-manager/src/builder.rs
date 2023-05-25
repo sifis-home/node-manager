@@ -1,6 +1,7 @@
 use crate::keys::PrivateKey;
 use crate::{
-    ManagerState, NodeEntry, NodeId, NodeIdGenerator, NodeManager, NodeStatus, SHARED_KEY_LEN,
+    ManagerState, NodeEntry, NodeId, NodeIdGenerator, NodeManager, NodeStatus, Thresholds,
+    SHARED_KEY_LEN,
 };
 use std::collections::HashMap;
 
@@ -9,6 +10,7 @@ pub struct NodeManagerBuilder {
     key_pair_pkcs8_der: Vec<u8>,
     node_id_generator: NodeIdGenerator,
     shared_key: Option<Vec<u8>>,
+    thresholds: Thresholds,
 }
 
 impl NodeManagerBuilder {
@@ -17,6 +19,7 @@ impl NodeManagerBuilder {
             key_pair_pkcs8_der: key_pair_pkcs8_der.to_owned(),
             node_id_generator,
             shared_key: None,
+            thresholds: Thresholds::new(),
         }
     }
     pub fn shared_key(self, shared_key: Vec<u8>) -> Self {
@@ -25,11 +28,15 @@ impl NodeManagerBuilder {
             ..self
         }
     }
+    pub fn thresholds(self, thresholds: Thresholds) -> Self {
+        Self { thresholds, ..self }
+    }
     pub fn build(self) -> NodeManager {
         let Self {
             key_pair_pkcs8_der,
             node_id_generator,
             shared_key,
+            thresholds,
         } = self;
         let key_pair = PrivateKey::from_pkcs8_der(&key_pair_pkcs8_der).unwrap();
         let public_key_der = key_pair.to_public_key().to_public_key_der().unwrap();
@@ -60,6 +67,7 @@ impl NodeManagerBuilder {
             state: ManagerState::WaitingForKey,
             vote_proposal: None,
             vote_suggestions: HashMap::new(),
+            thresholds,
         };
 
         if let Some(k) = shared_key {

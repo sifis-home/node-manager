@@ -265,12 +265,27 @@ enum ManagerState {
     WaitingForRekeying,
 }
 
-/// Maximum age for a message in order for the NodeManager to consider it as valid
-const MAX_MSG_AGE: u64 = 1_000;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Thresholds {
+    /// Maximum age for a message in order for the NodeManager to consider it as valid
+    pub max_msg_age: u64,
+    pub max_seen_time_soft: u64,
+}
 
-/// Maximum time since a node was last seen before we consider it as not visible any more
-// TODO: make this a multiple of a future keep alive interval
-const MAX_SEEN_TIME_FOR_RESPONSE: u64 = 15_000;
+impl Thresholds {
+    fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl Default for Thresholds {
+    fn default() -> Self {
+        Self {
+            max_msg_age: 1_000,
+            max_seen_time_soft: 8_000,
+        }
+    }
+}
 
 /// The length of an expected shared key
 pub const SHARED_KEY_LEN: usize = 32;
@@ -299,6 +314,7 @@ pub struct NodeManager {
     vote_proposal: Option<VoteProposal>,
     // TODO: table storing voting proposal cooldowns for nodes
     vote_suggestions: HashMap<Vec<u8>, bool>,
+    thresholds: Thresholds,
 }
 
 impl NodeManager {
@@ -325,6 +341,10 @@ impl NodeManager {
     /// The public key in DER format
     pub fn public_key_der(&self) -> Vec<u8> {
         self.key_pair.to_public_key().to_public_key_der().unwrap()
+    }
+    /// The used threshold values for various actions
+    pub fn thresholds(&self) -> &Thresholds {
+        &self.thresholds
     }
     fn table_hash(&self) -> Vec<u8> {
         let adm_hash = {
@@ -538,8 +558,7 @@ impl NodeManager {
                 let Some(since_last_seen) = nd.last_seen_time.checked_sub(timestamp) else {
                     return Descision::No;
                 };
-                const LAST_SEEN_THRESH: u64 = 8_000;
-                if since_last_seen > LAST_SEEN_THRESH {
+                if since_last_seen > self.thresholds.max_seen_time_soft {
                     return Descision::No;
                 }
                 return Descision::No;
@@ -750,11 +769,12 @@ impl NodeManager {
             log::info!("Ignoring message that had an invalid signature or unknown signer.");
             return Ok(Vec::new());
         }
+        let max_msg_age = self.thresholds.max_msg_age;
         if !matches!(msg.operation, Operation::AddByAdmin(..))
-            && msg.timestamp < timestamp - MAX_MSG_AGE
+            && msg.timestamp < timestamp - max_msg_age
         {
             let msg_age = timestamp - msg.timestamp;
-            log::info!("Ignoring message with too large age {msg_age} (max={MAX_MSG_AGE}).");
+            log::info!("Ignoring message with too large age {msg_age} (max={max_msg_age}).");
             return Ok(Vec::new());
         }
         if from_members_network
