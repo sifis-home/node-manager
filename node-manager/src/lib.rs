@@ -807,14 +807,19 @@ impl NodeManager {
                 let responds_lobby = self.is_node_that_responds_lobby(timestamp);
                 // Add node to table as member
                 match self.nodes.entry(node_id.clone()) {
-                    Entry::Occupied(_ocd) => {
-                        // We still have this node in our table.
-                        // This might be due to a bug
-                        log::info!(
-                            "Node {} already in table. Ignoring AddByAdmin message.",
-                            fmt_hex_arr(&node_id.0)
-                        );
-                        return Ok(Vec::new());
+                    Entry::Occupied(mut ocd) => {
+                        if ocd.get().status == NodeStatus::Paused {
+                            // The node might have crashed, and has restarted so we want to allow it back.
+                            log::info!("Node {node_id:?} is already in table, but marked as paused. Treating AddByAdmin as valid.");
+                            ocd.get_mut().status = NodeStatus::Member;
+                        } else {
+                            // We still have this node in our table.
+                            // This might be due to a bug
+                            log::info!(
+                                "Node {node_id:?} already in table. Ignoring AddByAdmin message."
+                            );
+                            return Ok(Vec::new());
+                        }
                     }
                     Entry::Vacant(vcnt) => {
                         vcnt.insert(NodeEntry {
