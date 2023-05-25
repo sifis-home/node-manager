@@ -381,6 +381,7 @@ fn run_client(opt: Opt, key_pem: &str) {
             }
         }
         let ts = timestamp().unwrap();
+        resps.extend_from_slice(&node.check_finish_votes(ts).unwrap());
         match stdin_input.try_recv() {
             Ok(line) => {
                 match line.to_ascii_lowercase().as_str() {

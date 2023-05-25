@@ -33,6 +33,7 @@ pub struct Context {
     pub(crate) node: NodeManager,
     make_member_interval: Interval,
     keepalive_interval: Interval,
+    vote_interval: Interval,
     start_time: Instant,
     never_had_key: bool,
     wait_until_set_own: Duration,
@@ -86,6 +87,10 @@ impl Context {
             tokio::time::interval(Duration::from_millis(KEEPALIVE_TIMER_INTERVAL));
         keepalive_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
+        const VOTE_TIMER_INTERVAL: u64 = 1060;
+        let mut vote_interval = tokio::time::interval(Duration::from_millis(VOTE_TIMER_INTERVAL));
+        vote_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
         let start_time = Instant::now();
         let never_had_key = node.shared_key().is_empty();
 
@@ -102,6 +107,7 @@ impl Context {
             node,
             make_member_interval,
             keepalive_interval,
+            vote_interval,
             start_time,
             never_had_key,
             wait_until_set_own,
@@ -145,6 +151,12 @@ impl Context {
 
                     let should_be_first = (rand::random::<f64>() < 0.05) as u64 * 10_000;
                     let resp = self.node.check_timeouts(timestamp()?, should_be_first)?;
+                    self.handle_responses(&resp).await?;
+                }
+            }
+            _ = self.vote_interval.tick() => {
+                if !self.node.shared_key().is_empty() {
+                    let resp = self.node.check_finish_votes(timestamp()?)?;
                     self.handle_responses(&resp).await?;
                 }
             }

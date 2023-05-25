@@ -279,6 +279,8 @@ enum ManagerState {
 pub struct Thresholds {
     /// Maximum age for a message in order for the NodeManager to consider it as valid
     pub max_msg_age: u64,
+    /// Lifetime of a vote proposal after which each node counts the votes and decides what to do about it
+    pub vote_proposal_lifetime: u64,
     /// The max seen time, comprised of a (yellow, red) tuple
     ///
     /// After `yellow` time has passed, nodes will vote yes on any proposal to pause a node.
@@ -296,6 +298,7 @@ impl Default for Thresholds {
     fn default() -> Self {
         Self {
             max_msg_age: 1_000,
+            vote_proposal_lifetime: 400,
             max_seen_time: (8_000, 10_000),
         }
     }
@@ -764,6 +767,22 @@ impl NodeManager {
         Ok(res)
     }
 
+    /// Checks if there are any votes finishing and if yes, performs the actions needed to finish
+    pub fn check_finish_votes(&mut self, timestamp: u64) -> Result<Vec<Response>> {
+        if let Some(prop) = &self.vote_proposal {
+            let since_proposal = timestamp.saturating_sub(prop.initiation_time);
+            if since_proposal < self.thresholds.vote_proposal_lifetime {
+                return Ok(Vec::new());
+            }
+            //log::debug!("Vote time for vote is over, elapsed: {since_proposal}.");
+            let opt_desc = prop.maybe_get_descision();
+            if let Some(desc) = opt_desc {
+                return self.handle_decided_vote(desc, timestamp);
+            }
+        }
+        Ok(Vec::new())
+    }
+
     /// Handles the message
     ///
     /// Same as [`handle_msg_ts`](Self::handle_msg_ts), but the timestamp is set
@@ -1037,21 +1056,13 @@ impl NodeManager {
                     votes,
                     operation,
                 };
-                let maybe_desc = proposal.maybe_get_descision();
                 self.vote_proposal = Some(proposal);
 
                 // Broadcast our descision
-                let mut res = vec![Response::Message(msg, true)];
-
-                // If the vote is already decided, handle that too
-                if let Some(desc) = maybe_desc {
-                    res.extend(self.handle_decided_vote(desc, timestamp)?.into_iter());
-                }
-
-                return Ok(res);
+                return Ok(vec![Response::Message(msg, true)]);
             }
             Operation::Vote(proposal_hash, desc) => {
-                let opt_desc = if let Some(vp) = &mut self.vote_proposal {
+                if let Some(vp) = &mut self.vote_proposal {
                     if proposal_hash != vp.hash {
                         // TODO, same as above, we should maybe keep these in a buffer or such.
                         log::info!(
@@ -1085,8 +1096,6 @@ impl NodeManager {
                         );
                         return Ok(Vec::new());
                     }
-
-                    vp.maybe_get_descision()
                 } else {
                     // TODO, due to ordering noise, it is possible that votes arrive before proposals.
                     // Therefore, we should instead keep a buffer of these votes and only discard if we have reason to.
@@ -1095,9 +1104,6 @@ impl NodeManager {
                         fmt_hex_arr(&msg.signer_id)
                     );
                     return Ok(Vec::new());
-                };
-                if let Some(desc) = opt_desc {
-                    return self.handle_decided_vote(desc, timestamp);
                 }
             }
             Operation::EncapsulatedKeys(keys_enc) => {
@@ -1170,6 +1176,7 @@ impl NodeManager {
 
         Ok(Vec::new())
     }
+
     fn handle_decided_vote(&mut self, desc: Descision, timestamp: u64) -> Result<Vec<Response>> {
         log::debug!(
             "Descision was reached by {}: {desc:?}",
@@ -1178,7 +1185,7 @@ impl NodeManager {
         // Descision reached: remove the vote proposal
         let vp = self.vote_proposal.take().unwrap();
         if desc == Descision::Yes {
-            // Enact the descision: remove the node, and perform a rekeying.
+            // Enact the descision, and perform a rekeying (as currently all operations perform removals).
             match vp.operation {
                 VoteOperation::Remove(node_to_remove) => {
                     let node_to_remove = NodeId::from_data(&node_to_remove);
@@ -1193,7 +1200,6 @@ impl NodeManager {
                     nd.status = NodeStatus::Paused;
                 }
             }
-            // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
             self.state = ManagerState::WaitingForRekeying;
             if self.is_node_that_does_rekeying(timestamp) {
                 return self.make_rekeying(timestamp);

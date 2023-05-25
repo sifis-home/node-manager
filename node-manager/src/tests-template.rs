@@ -82,35 +82,36 @@ fn handle_msg_buf(
         s = if msgs_count > 1 { "s" } else { "" },
     );
     for (node_i, node) in nodes.iter_mut().enumerate() {
+        // Cache the shared key as it might change during the message
+        // handling. If we then process the responses, we should use the
+        // original key (or the one set by a SetSharedKey response).
+        let mut node_shared_key = node.shared_key().to_vec();
+
+        let mut resps = node.check_finish_votes(timestamp).unwrap();
+
         for (net_id, msgs) in buf {
             for msg in msgs {
-                // Cache the shared key as it might change during the message
-                // handling. If we then process the responses, we should use the
-                // original key (or the one set by a SetSharedKey response).
-                let mut node_shared_key = node.shared_key().to_vec();
                 if let Some(net_id) = net_id {
-                    if net_id != &node_shared_key {
+                    if net_id != &node.shared_key() {
                         // Mismatch, this node will not receive this message :)
                         continue;
                     }
                 }
                 let in_members_network = net_id.is_some();
                 let msg_bytes = msg.serialize();
-                let resps = node
-                    .handle_msg_ts(&msg_bytes, in_members_network, timestamp)
-                    .unwrap();
-                for resp in resps {
-                    match resp {
-                        Response::SetSharedKey(k) => {
-                            node_shared_key = k.clone();
-                            new_shared_keys[node_i] = Some(k);
-                        }
-                        Response::Message(msg, for_members_network) => {
-                            let net_id = for_members_network.then(|| node_shared_key.to_vec());
-                            let list = new_buf.entry(net_id).or_default();
-                            list.push(msg);
-                        }
-                    }
+                resps.extend_from_slice(&node.handle_msg_ts(&msg_bytes, in_members_network, timestamp).unwrap());
+            }
+        }
+        for resp in resps {
+            match resp {
+                Response::SetSharedKey(k) => {
+                    node_shared_key = k.clone();
+                    new_shared_keys[node_i] = Some(k);
+                }
+                Response::Message(msg, for_members_network) => {
+                    let net_id = for_members_network.then(|| node_shared_key.to_vec());
+                    let list = new_buf.entry(net_id).or_default();
+                    list.push(msg);
                 }
             }
         }
@@ -473,12 +474,13 @@ fn node_manager_test_vote_remove() {
     let new_keys = sim.msg_buf_round(ts);
     assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
 
-    // One round to distribute the votes: now the rekeying starts
+    // One round to distribute the votes
     ts += 100;
-    sim.msg_buf
-        .entry(Some(TEST_SHARED_KEY.to_vec()))
-        .or_default()
-        .push(msg_vote.clone());
+    let new_keys = sim.msg_buf_round(ts);
+    assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 0);
+
+    // One round to wait for the vote to be over and for one of the nodes to start rekeying
+    ts += 900;
     let new_keys = sim.msg_buf_round(ts);
     assert_eq!(new_keys.iter().filter(|k| k.is_some()).count(), 1);
 
