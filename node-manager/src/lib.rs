@@ -2,6 +2,7 @@
 
 pub use crate::builder::NodeManagerBuilder;
 use crate::keys::{PrivateKey, PublicKey, VerifySignature};
+pub use crate::node_table::JosangTrust;
 pub use crate::node_table::{NodeEntry, NodeStatus};
 use anyhow::Result;
 use core::fmt::{self, Debug};
@@ -317,7 +318,7 @@ pub struct NodeManager {
     node_id: Vec<u8>,
     /// List of admin keys, given as tuples of `(<DER formatted key>, PublicKey)`
     admin_keys: Vec<(Vec<u8>, PublicKey)>,
-    nodes: HashMap<NodeId, NodeEntry>,
+    nodes: HashMap<NodeId, NodeEntry<JosangTrust>>,
     /// Field storing a multitude of states for the node,
     /// mostly whether we wait for something to happen
     ///
@@ -877,6 +878,7 @@ impl NodeManager {
                             public_key_der: node_public_key_der,
                             status: NodeStatus::Member,
                             last_seen_time: timestamp,
+                            trust: Default::default(),
                         });
                     }
                 }

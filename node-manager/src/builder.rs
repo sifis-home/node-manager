@@ -53,6 +53,7 @@ impl NodeManagerBuilder {
                 // If a shared key is specified, this will be set later by set_init_random_shared_key
                 status: NodeStatus::WaitingEntry,
                 last_seen_time: super::ts(),
+                trust: Default::default(),
             },
         );
 

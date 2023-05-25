@@ -17,18 +17,35 @@ pub enum NodeStatus {
     WaitingEntry,
 }
 
+#[derive(Clone, Copy)]
+pub struct JosangTrust {
+    pub belief: f64,
+    pub disbelief: f64,
+    pub uncertainty: f64,
+}
+
+impl Default for JosangTrust {
+    fn default() -> Self {
+        Self {
+            belief: 1.0,
+            disbelief: 0.0,
+            uncertainty: 0.0,
+        }
+    }
+}
+
 #[derive(Clone)]
-pub struct NodeEntry {
+pub struct NodeEntry<T> {
     pub public_key: PublicKey,
     pub public_key_der: Vec<u8>,
     pub status: NodeStatus,
     pub last_seen_time: u64,
-    // TODO: trust
+    pub trust: T,
 }
 
-pub type NodeTable = HashMap<NodeId, NodeEntry>;
+pub type NodeTable<T> = HashMap<NodeId, NodeEntry<T>>;
 
-pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable> {
+pub fn from_data<T: Default>(data: &[u8], timestamp: u64) -> Result<NodeTable<T>> {
     let nodes_list: Vec<(NodeId, (Vec<u8>, NodeStatus))> = bincode::deserialize(data)?;
     let nodes = nodes_list
         .into_iter()
@@ -40,15 +57,16 @@ pub fn from_data(data: &[u8], timestamp: u64) -> Result<NodeTable> {
                     public_key_der,
                     status,
                     last_seen_time: timestamp,
+                    trust: Default::default(),
                 },
             );
             Ok(tuple)
         })
-        .collect::<Result<HashMap<NodeId, NodeEntry>>>()?;
+        .collect::<Result<HashMap<NodeId, NodeEntry<T>>>>()?;
     Ok(nodes)
 }
 
-pub fn serialize(this: &NodeTable) -> Result<Vec<u8>> {
+pub fn serialize<T>(this: &NodeTable<T>) -> Result<Vec<u8>> {
     let nodes_vec = this
         .iter()
         .map(
@@ -59,6 +77,7 @@ pub fn serialize(this: &NodeTable) -> Result<Vec<u8>> {
                     public_key: _,
                     status,
                     last_seen_time: _,
+                    trust: _,
                 },
             )| (id, public_key_der, status),
         )
@@ -66,7 +85,7 @@ pub fn serialize(this: &NodeTable) -> Result<Vec<u8>> {
     Ok(bincode::serialize(&nodes_vec)?)
 }
 
-pub(crate) fn table_str(nodes: &NodeTable) -> String {
+pub(crate) fn table_str<T>(nodes: &NodeTable<T>) -> String {
     let mut res = String::new();
     for (nd, nd_entry) in nodes.iter() {
         use std::fmt::Write;
