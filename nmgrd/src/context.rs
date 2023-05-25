@@ -457,7 +457,7 @@ struct VoteSuggKey {
 }
 
 impl VoteSuggKey {
-    /// Parses a key in the form <node-caster>:<casted-upon>
+    /// Parses a key in the form `<node-caster>:<casted-upon>`
     fn parse(key: &str) -> Option<Self> {
         let mut it = key.split(':');
         let caster_str = it.next()?;
