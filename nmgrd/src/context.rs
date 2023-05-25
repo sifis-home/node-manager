@@ -31,7 +31,8 @@ pub struct Context {
     swarm: Swarm,
     ws_conn: WsContext,
     pub(crate) node: NodeManager,
-    interval: Interval,
+    make_member_interval: Interval,
+    keepalive_interval: Interval,
     start_time: Instant,
     never_had_key: bool,
     wait_until_set_own: Duration,
@@ -77,8 +78,13 @@ impl Context {
 
         let cfg_path = cfg_path.to_string();
 
-        let mut interval = tokio::time::interval(Duration::from_millis(2000));
-        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        let mut make_member_interval = tokio::time::interval(Duration::from_millis(2000));
+        make_member_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+        const KEEPALIVE_TIMER_INTERVAL: u64 = 1060;
+        let mut keepalive_interval =
+            tokio::time::interval(Duration::from_millis(KEEPALIVE_TIMER_INTERVAL));
+        keepalive_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         let start_time = Instant::now();
         let never_had_key = node.shared_key().is_empty();
@@ -94,7 +100,8 @@ impl Context {
             topic,
             ws_conn,
             node,
-            interval,
+            make_member_interval,
+            keepalive_interval,
             start_time,
             never_had_key,
             wait_until_set_own,
@@ -112,12 +119,9 @@ impl Context {
     }
     pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
         tokio::select!(
-            _ = self.interval.tick() => {
+            _ = self.make_member_interval.tick() => {
                 if !self.node.shared_key().is_empty() {
                     self.never_had_key = false;
-
-                    let resp = self.node.make_keepalive(timestamp()?)?;
-                    self.handle_responses(&resp).await?;
                 }
                 if self.never_had_key {
                     let peers_count = self.swarm.behaviour().gossipsub.all_peers().count();
@@ -132,6 +136,16 @@ impl Context {
                         self.node.set_random_shared_key();
                         self.handle_rekeying(None).await?;
                     }
+                }
+            }
+            _ = self.keepalive_interval.tick() => {
+                if !self.node.shared_key().is_empty() {
+                    let resp = self.node.make_keepalive(timestamp()?)?;
+                    self.handle_responses(&resp).await?;
+
+                    let should_be_first = (rand::random::<f64>() < 0.05) as u64 * 10_000;
+                    let resp = self.node.check_timeouts(timestamp()?, should_be_first)?;
+                    self.handle_responses(&resp).await?;
                 }
             }
             ws_msg = self.ws_conn.select_next_some() => {
