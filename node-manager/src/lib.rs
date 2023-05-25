@@ -718,7 +718,10 @@ impl NodeManager {
     }
 
     /// Checks whether any node has not sent their in time
-    pub fn check_timeouts(&mut self, timestamp: u64) -> Result<Vec<Response>> {
+    ///
+    /// The `add_val` is some random value used to add to the threshold,
+    /// to prevent multiple nodes from starting votes on the same time.
+    pub fn check_timeouts(&mut self, timestamp: u64, add_val: u64) -> Result<Vec<Response>> {
         let max_seen_time_red = self.thresholds.max_seen_time.1;
         let mut res = Vec::new();
         for (nid, nd_entry) in self.nodes.iter() {
