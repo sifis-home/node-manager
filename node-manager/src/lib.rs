@@ -744,6 +744,10 @@ impl NodeManager {
                     return Ok(Vec::new());
                 };
                 let node_id = NodeId(node_id);
+                if self.shared_key.is_empty() {
+                    log::info!("We are not in the node table yet. Ignoring AddByAdmin message from node {}.", fmt_hex_arr(&node_id.0));
+                    return Ok(Vec::new());
+                }
                 // This needs to be read before we add the node as member,
                 // otherwise we might think that the new node is a possible
                 // candidate. We also can't add the node as waiting,
