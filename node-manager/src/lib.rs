@@ -1013,7 +1013,11 @@ impl NodeManager {
                 // Determine our own descision on the proposal
                 let desc = self.decide_vote(&operation, timestamp);
 
-                log::info!("Incoming proposal to {} by node {} -> {desc:?}", operation.kind_str(), fmt_hex_arr(&msg.signer_id));
+                log::info!(
+                    "Incoming proposal to {} by node {} -> {desc:?}",
+                    operation.kind_str(),
+                    fmt_hex_arr(&msg.signer_id)
+                );
 
                 votes.insert(self.node_id.clone(), VoteEntry::Voted(desc));
                 let op = Operation::Vote(prop_hash.clone(), desc);
@@ -1031,10 +1035,18 @@ impl NodeManager {
                     votes,
                     operation,
                 };
+                let maybe_desc = proposal.maybe_get_descision();
                 self.vote_proposal = Some(proposal);
 
                 // Broadcast our descision
-                return Ok(vec![Response::Message(msg, true)]);
+                let mut res = vec![Response::Message(msg, true)];
+
+                // If the vote is already decided, handle that too
+                if let Some(desc) = maybe_desc {
+                    res.extend(self.handle_decided_vote(desc, timestamp)?.into_iter());
+                }
+
+                return Ok(res);
             }
             Operation::Vote(proposal_hash, desc) => {
                 let opt_desc = if let Some(vp) = &mut self.vote_proposal {
@@ -1083,34 +1095,7 @@ impl NodeManager {
                     return Ok(Vec::new());
                 };
                 if let Some(desc) = opt_desc {
-                    log::debug!(
-                        "Descision was reached by {}: {desc:?}",
-                        fmt_hex_arr(&self.node_id)
-                    );
-                    // Descision reached: remove the vote proposal
-                    let vp = self.vote_proposal.take().unwrap();
-                    if desc == Descision::Yes {
-                        // Enact the descision: remove the node, and perform a rekeying.
-                        match vp.operation {
-                            VoteOperation::Remove(node_to_remove) => {
-                                let node_to_remove = NodeId::from_data(&node_to_remove);
-                                self.nodes.remove(&node_to_remove);
-                            }
-                            VoteOperation::Pause(node_to_pause) => {
-                                let node_to_pause = NodeId::from_data(&node_to_pause);
-                                let Some(nd) = self.nodes.get_mut(&node_to_pause) else {
-                                    log::info!("Couldn't find node for pausing. Ignoring vote result.");
-                                    return Ok(Vec::new());
-                                };
-                                nd.status = NodeStatus::Paused;
-                            }
-                        }
-                        // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
-                        self.state = ManagerState::WaitingForRekeying;
-                        if self.is_node_that_does_rekeying(timestamp) {
-                            return self.make_rekeying(timestamp);
-                        }
-                    }
+                    return self.handle_decided_vote(desc, timestamp);
                 }
             }
             Operation::EncapsulatedKeys(keys_enc) => {
@@ -1181,6 +1166,37 @@ impl NodeManager {
             }
         }
 
+        Ok(Vec::new())
+    }
+    fn handle_decided_vote(&mut self, desc: Descision, timestamp: u64) -> Result<Vec<Response>> {
+        log::debug!(
+            "Descision was reached by {}: {desc:?}",
+            fmt_hex_arr(&self.node_id)
+        );
+        // Descision reached: remove the vote proposal
+        let vp = self.vote_proposal.take().unwrap();
+        if desc == Descision::Yes {
+            // Enact the descision: remove the node, and perform a rekeying.
+            match vp.operation {
+                VoteOperation::Remove(node_to_remove) => {
+                    let node_to_remove = NodeId::from_data(&node_to_remove);
+                    self.nodes.remove(&node_to_remove);
+                }
+                VoteOperation::Pause(node_to_pause) => {
+                    let node_to_pause = NodeId::from_data(&node_to_pause);
+                    let Some(nd) = self.nodes.get_mut(&node_to_pause) else {
+                        log::info!("Couldn't find node for pausing. Ignoring vote result.");
+                        return Ok(Vec::new());
+                    };
+                    nd.status = NodeStatus::Paused;
+                }
+            }
+            // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
+            self.state = ManagerState::WaitingForRekeying;
+            if self.is_node_that_does_rekeying(timestamp) {
+                return self.make_rekeying(timestamp);
+            }
+        }
         Ok(Vec::new())
     }
 }
