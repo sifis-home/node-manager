@@ -568,7 +568,8 @@ impl NodeManager {
                     log::info!("Couldn't find node with {nid:?} in table for deciding pause vote. Deciding against.");
                     return Descision::No;
                 };
-                let Some(since_last_seen) = nd.last_seen_time.checked_sub(timestamp) else {
+                let Some(since_last_seen) = timestamp.checked_sub(nd.last_seen_time) else {
+                    log::info!("Overflow in node age calculation during vote descision. Deciding against.");
                     return Descision::No;
                 };
                 if since_last_seen > self.thresholds.max_seen_time.0 {
