@@ -20,6 +20,10 @@ pub enum VoteOperation {
     ///
     /// Data: (node id)
     Remove(Vec<u8>),
+    /// Pause a specified node due to keepalive failing
+    ///
+    /// Data: (node id)
+    Pause(Vec<u8>),
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -482,36 +486,63 @@ impl NodeManager {
         ])
     }
     fn decide_vote(&self, op: &VoteOperation, timestamp: u64) -> Descision {
-        let VoteOperation::Remove(id) = op;
-        if id == &self.node_id {
-            // Obviously, if this is about *ourselves* being kicked out,
-            // argue against it.
-            return Descision::No;
-        }
-        if let Some(sugg) = self.vote_suggestions.get(id) {
-            if *sugg {
-                Descision::Yes
-            } else {
-                Descision::No
+        match op {
+            VoteOperation::Remove(id) => {
+                if id == &self.node_id {
+                    // Obviously, if this is about *ourselves* being kicked out,
+                    // argue against it.
+                    return Descision::No;
+                }
+                if let Some(sugg) = self.vote_suggestions.get(id) {
+                    if *sugg {
+                        Descision::Yes
+                    } else {
+                        Descision::No
+                    }
+                } else {
+                    log::info!("Falling back to random generator for voting descision on {id:?}.");
+                    // Fallback to rng if the suggestion is not stored
+                    // Default: accept, but deny in 1/8 of cases
+                    // TODO: implement a trust based scheme here, instead of just random choice.
+                    fn rng(this: &NodeManager, timestamp: u64) -> bool {
+                        let tbl_hash = this.table_hash();
+                        let mut hasher = Sha256::new();
+                        hasher.update(tbl_hash);
+                        hasher.update(&this.node_id);
+                        hasher.update(timestamp.to_be_bytes());
+                        let hash = hasher.finalize().to_vec();
+                        hash[0] & 0b111 == 0
+                    }
+                    if rng(self, timestamp) {
+                        Descision::No
+                    } else {
+                        Descision::Yes
+                    }
+                }
             }
-        } else {
-            log::info!("Falling back to random generator for voting descision on {id:?}.");
-            // Fallback to rng if the suggestion is not stored
-            // Default: accept, but deny in 1/8 of cases
-            // TODO: implement a trust based scheme here, instead of just random choice.
-            fn rng(this: &NodeManager, timestamp: u64) -> bool {
-                let tbl_hash = this.table_hash();
-                let mut hasher = Sha256::new();
-                hasher.update(tbl_hash);
-                hasher.update(&this.node_id);
-                hasher.update(timestamp.to_be_bytes());
-                let hash = hasher.finalize().to_vec();
-                hash[0] & 0b111 == 0
-            }
-            if rng(self, timestamp) {
-                Descision::No
-            } else {
-                Descision::Yes
+            VoteOperation::Pause(id) => {
+                if id == &self.node_id {
+                    // Apparently some node didn't receive our keepalive in time and started a vote on our removal.
+                    // Obviously, argue against it, but at this point we cannot exclude the possibility that
+                    // we are voted out.
+                    log::info!(
+                        "There is a vote about us being paused, and we received the proposal"
+                    );
+                    return Descision::No;
+                }
+                let nid = NodeId::from_data(id);
+                let Some(nd) = self.nodes.get(&nid) else {
+                    log::info!("Couldn't find node with {nid:?} in table for deciding pause vote. Deciding against.");
+                    return Descision::No;
+                };
+                let Some(since_last_seen) = nd.last_seen_time.checked_sub(timestamp) else {
+                    return Descision::No;
+                };
+                const LAST_SEEN_THRESH: u64 = 8_000;
+                if since_last_seen > LAST_SEEN_THRESH {
+                    return Descision::No;
+                }
+                return Descision::No;
             }
         }
     }
@@ -982,9 +1013,20 @@ impl NodeManager {
                     let vp = self.vote_proposal.take().unwrap();
                     if desc == Descision::Yes {
                         // Enact the descision: remove the node, and perform a rekeying.
-                        let VoteOperation::Remove(node_to_remove) = vp.operation;
-                        let node_to_remove = NodeId::from_data(&node_to_remove);
-                        self.nodes.remove(&node_to_remove);
+                        match vp.operation {
+                            VoteOperation::Remove(node_to_remove) => {
+                                let node_to_remove = NodeId::from_data(&node_to_remove);
+                                self.nodes.remove(&node_to_remove);
+                            }
+                            VoteOperation::Pause(node_to_pause) => {
+                                let node_to_pause = NodeId::from_data(&node_to_pause);
+                                let Some(nd) = self.nodes.get_mut(&node_to_pause) else {
+                                    log::info!("Couldn't find node for pausing. Ignoring vote result.");
+                                    return Ok(Vec::new());
+                                };
+                                nd.status = NodeStatus::Paused;
+                            }
+                        }
                         // TODO: maybe wait a little with the rekeying until the vote messages have went through the network
                         self.state = ManagerState::WaitingForRekeying;
                         if self.is_node_that_does_rekeying(timestamp) {
