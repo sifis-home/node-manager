@@ -34,6 +34,23 @@ impl Default for JosangTrust {
     }
 }
 
+impl JosangTrust {
+    pub fn inc_belief(&mut self, d_b: f64) {
+        self.belief += d_b;
+        self.uncertainty -= d_b / 2.0;
+        self.disbelief -= d_b / 2.0;
+    }
+    pub fn inc_disbelief(&mut self, d_d: f64) {
+        self.disbelief += d_d;
+        self.uncertainty -= d_d / 2.0;
+        self.belief -= d_d / 2.0;
+    }
+    pub fn inc_uncertainty(&mut self, d_u: f64) {
+        self.belief -= d_u;
+        self.uncertainty += d_u;
+    }
+}
+
 #[derive(Clone)]
 pub struct NodeEntry<T> {
     pub public_key: PublicKey,
