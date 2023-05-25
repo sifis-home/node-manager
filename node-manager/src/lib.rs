@@ -269,7 +269,11 @@ enum ManagerState {
 pub struct Thresholds {
     /// Maximum age for a message in order for the NodeManager to consider it as valid
     pub max_msg_age: u64,
-    pub max_seen_time_soft: u64,
+    /// The max seen time, comprised of a (yellow, red) tuple
+    ///
+    /// After `yellow` time has passed, nodes will vote yes on any proposal to pause a node.
+    /// After `red` time has passed, nodes will start votes of their own.
+    pub max_seen_time: (u64, u64),
 }
 
 impl Thresholds {
@@ -282,7 +286,7 @@ impl Default for Thresholds {
     fn default() -> Self {
         Self {
             max_msg_age: 1_000,
-            max_seen_time_soft: 8_000,
+            max_seen_time: (8_000, 10_000),
         }
     }
 }
@@ -558,7 +562,7 @@ impl NodeManager {
                 let Some(since_last_seen) = nd.last_seen_time.checked_sub(timestamp) else {
                     return Descision::No;
                 };
-                if since_last_seen > self.thresholds.max_seen_time_soft {
+                if since_last_seen > self.thresholds.max_seen_time.0 {
                     return Descision::No;
                 }
                 return Descision::No;
@@ -711,6 +715,24 @@ impl NodeManager {
             return Ok(Vec::new());
         };
         Ok(vec![Response::Message(msg, true)])
+    }
+
+    /// Checks whether any node has not sent their in time
+    pub fn check_timeouts(&mut self, timestamp: u64) -> Result<Vec<Response>> {
+        let max_seen_time_red = self.thresholds.max_seen_time.1;
+        let mut res = Vec::new();
+        for (nid, nd_entry) in self.nodes.iter() {
+            let Some(time_since_last) = timestamp.checked_sub(nd_entry.last_seen_time) else { continue };
+            if time_since_last > max_seen_time_red {
+                let op = Operation::VoteProposal(VoteOperation::Pause(nid.0.to_owned()));
+                let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+                    log::info!("Couldn't sign pause vote proposal msg.");
+                    return Ok(Vec::new());
+                };
+                res.push(Response::Message(msg, true));
+            }
+        }
+        Ok(res)
     }
 
     /// Handles the message
