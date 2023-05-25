@@ -26,6 +26,15 @@ pub enum VoteOperation {
     Pause(Vec<u8>),
 }
 
+impl VoteOperation {
+    fn kind_str(&self) -> &'static str {
+        match self {
+            VoteOperation::Remove(..) => "Remove",
+            VoteOperation::Pause(..) => "Pause",
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct VoteProposal {
     initiator_id: Vec<u8>,
@@ -1002,6 +1011,9 @@ impl NodeManager {
 
                 // Determine our own descision on the proposal
                 let desc = self.decide_vote(&operation, timestamp);
+
+                log::info!("Incoming proposal to {} by node {} -> {desc:?}", operation.kind_str(), fmt_hex_arr(&msg.signer_id));
+
                 votes.insert(self.node_id.clone(), VoteEntry::Voted(desc));
                 let op = Operation::Vote(prop_hash.clone(), desc);
 
