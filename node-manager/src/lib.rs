@@ -708,10 +708,11 @@ impl NodeManager {
         Ok(())
     }
 
+    /// Creates a keepalive message to be sent to the outside world
     pub fn make_keepalive(&self, timestamp: u64) -> Result<Vec<Response>> {
         let op = Operation::KeepAlive(self.table_hash());
         let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
-            log::info!("Couldn't sign vote proposal msg.");
+            log::info!("Couldn't sign keep alive msg.");
             return Ok(Vec::new());
         };
         Ok(vec![Response::Message(msg, true)])
@@ -727,6 +728,7 @@ impl NodeManager {
         for (nid, nd_entry) in self.nodes.iter() {
             let Some(time_since_last) = timestamp.checked_sub(nd_entry.last_seen_time) else { continue };
             if time_since_last > max_seen_time_red {
+                log::info!("Starting vote on pausing timed out node {nid:?}.");
                 let op = Operation::VoteProposal(VoteOperation::Pause(nid.0.to_owned()));
                 let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
                     log::info!("Couldn't sign pause vote proposal msg.");
