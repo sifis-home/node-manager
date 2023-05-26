@@ -492,3 +492,25 @@ fn node_manager_test_vote_remove() {
         sim.nodes.len() - 2 // minus one for the removed, minus one for the rekeying node
     );
 }
+
+use rand_07::{rngs::SmallRng, CryptoRng, RngCore, SeedableRng};
+
+/// Testing random number generator for determinism during testing
+struct TestRng(SmallRng);
+
+impl RngCore for TestRng {
+    fn next_u32(&mut self) -> u32 {
+        self.0.next_u32()
+    }
+    fn next_u64(&mut self) -> u64 {
+        self.0.next_u64()
+    }
+    fn fill_bytes(&mut self, buf: &mut [u8]) {
+        self.0.fill_bytes(buf);
+    }
+    fn try_fill_bytes(&mut self, buf: &mut [u8]) -> Result<(), rand_07::Error> {
+        self.0.try_fill_bytes(buf)
+    }
+}
+
+impl CryptoRng for TestRng {}
