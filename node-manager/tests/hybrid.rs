@@ -22,12 +22,7 @@ const TEST_KEYS: &[&str] = &[
 ];
 
 fn test_key() -> &'static str {
-    Box::leak(
-        PrivateKey::generate_ed25519()
-            .to_pkcs8_pem()
-            .unwrap()
-            .into_boxed_str(),
-    )
+    TEST_KEYS[0]
 }
 
 fn test_keys() -> &'static [&'static str] {
