@@ -3,7 +3,7 @@
 pub use crate::builder::NodeManagerBuilder;
 use crate::keys::{PrivateKey, PublicKey, VerifySignature};
 pub use crate::node_table::JosangTrust;
-pub use crate::node_table::{NodeEntry, NodeStatus};
+pub use crate::node_table::{NodeEntry, NodeStatus, NodeTable};
 use anyhow::Result;
 use core::fmt::{self, Debug};
 use serde::{Deserialize, Serialize};
@@ -47,7 +47,7 @@ pub struct VoteProposal {
 }
 
 impl VoteProposal {
-    fn maybe_get_descision(&self) -> Option<Descision> {
+    fn maybe_get_descision_simple(&self) -> Option<Descision> {
         let possible_votes_count = self.votes.len();
         let mut yes_count = 0;
         let mut no_count = 0;
@@ -72,6 +72,38 @@ impl VoteProposal {
             );
         }
         descision
+    }
+    fn maybe_get_descision_trust(&self, nodes: &NodeTable<JosangTrust>) -> Option<Descision> {
+        let possible_votes_count = self.votes.len();
+        let mut yes_sum = 0.0;
+        let mut no_sum = 0.0;
+        for (node_id, v_en) in self.votes.iter() {
+            let nid = NodeId::from_data(node_id);
+            let Some(nd_entry) = nodes.get(&nid) else {
+                log::info!("Couldn't find node {node_id:?} in node table");
+                continue
+            };
+            let nd_rep = nd_entry.trust.reputation();
+            if v_en == &VoteEntry::Voted(Descision::Yes) {
+                yes_sum += nd_rep;
+            } else if v_en == &VoteEntry::Voted(Descision::No) {
+                no_sum += nd_rep;
+            }
+        }
+
+        let quorum_reached = (yes_sum + no_sum) >= possible_votes_count as f64 * 0.6;
+        quorum_reached.then(|| {
+            let desc = if yes_sum > no_sum {
+                Descision::Yes
+            } else {
+                Descision::No
+            };
+            log::info!(
+                "Descision results: yes={yes_sum}, no={no_sum}, quorum={}, eligible={possible_votes_count} -> {desc:?}",
+                yes_sum + no_sum
+            );
+            desc
+        })
     }
 }
 
@@ -321,7 +353,7 @@ pub struct NodeManager {
     node_id: Vec<u8>,
     /// List of admin keys, given as tuples of `(<DER formatted key>, PublicKey)`
     admin_keys: Vec<(Vec<u8>, PublicKey)>,
-    nodes: HashMap<NodeId, NodeEntry<JosangTrust>>,
+    nodes: NodeTable<JosangTrust>,
     /// Field storing a multitude of states for the node,
     /// mostly whether we wait for something to happen
     ///
@@ -775,7 +807,7 @@ impl NodeManager {
                 return Ok(Vec::new());
             }
             //log::debug!("Vote time for vote is over, elapsed: {since_proposal}.");
-            let opt_desc = prop.maybe_get_descision();
+            let opt_desc = prop.maybe_get_descision_trust(&self.nodes);
             if let Some(desc) = opt_desc {
                 return self.handle_decided_vote(desc, timestamp);
             }
@@ -1184,6 +1216,43 @@ impl NodeManager {
         );
         // Descision reached: remove the vote proposal
         let vp = self.vote_proposal.take().unwrap();
+
+        const DELTA_BELIEF: f64 = 0.01;
+        const DELTA_DISBELIEF: f64 = 0.4;
+        const DELTA_UNCERTAINTY: f64 = 0.2;
+        for (nd_id, nd_entry) in self.nodes.iter_mut() {
+            if nd_id.0 == self.node_id {
+                continue;
+            }
+            enum ToInc {
+                Belief,
+                Disbelief,
+                Uncertainty,
+            }
+            let to_inc = if let Some(vt_entry) = vp.votes.get(&nd_id.0) {
+                match vt_entry {
+                    VoteEntry::Voted(nd_desc) => {
+                        if desc == *nd_desc {
+                            ToInc::Belief
+                        } else {
+                            ToInc::Disbelief
+                        }
+                    }
+                    VoteEntry::VotedBadly => ToInc::Disbelief,
+                    VoteEntry::NotVoted => ToInc::Uncertainty,
+                }
+            } else {
+                // This can occur if the node joined after the vote started, for example.
+                log::info!("Node {nd_id:?} not found in vote table, although even if it didn't vote, it should be in there.");
+                ToInc::Uncertainty
+            };
+            match to_inc {
+                ToInc::Belief => nd_entry.trust.inc_belief(DELTA_BELIEF),
+                ToInc::Disbelief => nd_entry.trust.inc_disbelief(DELTA_DISBELIEF),
+                ToInc::Uncertainty => nd_entry.trust.inc_uncertainty(DELTA_UNCERTAINTY),
+            }
+        }
+
         if desc == Descision::Yes {
             // Enact the descision, and perform a rekeying (as currently all operations perform removals).
             match vp.operation {
