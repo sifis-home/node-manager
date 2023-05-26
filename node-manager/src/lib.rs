@@ -579,7 +579,7 @@ impl NodeManager {
                 if since_last_seen > self.thresholds.max_seen_time.0 {
                     return Descision::Yes;
                 }
-                return Descision::No;
+                Descision::No
             }
         }
     }

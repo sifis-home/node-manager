@@ -53,7 +53,7 @@ fn make_test_files(count: u16, dir: &str, admin_key_pem: Option<String>) -> Resu
         let cfg_toml = toml::to_string(&cfg)?;
         let toml_with_comment = format!(
             "# Admin key:\n# {}\n{cfg_toml}",
-            admin_key_pem.replace("\n", "\n# ")
+            admin_key_pem.replace('\n', "\n# ")
         );
         write_file(format!("{dir}/config-{i:02}.toml"), toml_with_comment)?;
     }

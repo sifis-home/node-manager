@@ -92,7 +92,7 @@ fn handle_msg_buf(
         for (net_id, msgs) in buf {
             for msg in msgs {
                 if let Some(net_id) = net_id {
-                    if net_id != &node.shared_key() {
+                    if net_id != node.shared_key() {
                         // Mismatch, this node will not receive this message :)
                         continue;
                     }
