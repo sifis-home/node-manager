@@ -31,7 +31,7 @@ static KEYS: OnceCell<Vec<&'static str>> = OnceCell::new();
 fn test_keys() -> &'static [&'static str] {
     KEYS.get_or_init(|| {
         let vec_ref = KEYS_STORAGE.get_or_init(|| {
-            let mut rng = TestRng(SmallRng::seed_from_u64(10_424_143));
+            let mut rng = TestRng::new();
             (0..20)
                 .map(|v| {
                     if v % 2 == 0 {

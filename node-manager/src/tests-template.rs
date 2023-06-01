@@ -514,3 +514,10 @@ impl RngCore for TestRng {
 }
 
 impl CryptoRng for TestRng {}
+
+impl TestRng {
+    #[allow(dead_code)]
+    fn new() -> Self {
+         TestRng(SmallRng::seed_from_u64(10_424_143))
+    }
+}

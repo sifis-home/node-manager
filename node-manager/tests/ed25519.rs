@@ -12,7 +12,7 @@ fn test_key() -> &'static str {
 fn test_keys() -> &'static [&'static str] {
     KEYS.get_or_init(|| {
         let vec_ref = KEYS_STORAGE.get_or_init(|| {
-            let mut rng = TestRng(SmallRng::seed_from_u64(10_424_143));
+            let mut rng = TestRng::new();
             (0..20)
                 .map(|_| {
                     PrivateKey::generate_ed25519_rng(&mut rng)
