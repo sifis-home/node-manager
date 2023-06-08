@@ -781,19 +781,35 @@ impl NodeManager {
             return Ok(Vec::new());
         }
         let max_seen_time_red = self.thresholds.max_seen_time.1;
+        let max_seen_time_yellow = self.thresholds.max_seen_time.0;
         let mut res = Vec::new();
         let mut nids = Vec::new();
-        for (nid, nd_entry) in self.nodes.iter() {
-            if nid.0 == self.node_id {
-                continue;
+        {
+            let nd_iter = self.nodes.iter().filter_map(|(nid, nd_entry)| {
+                if nid.0 == self.node_id {
+                    return None;
+                }
+                if nd_entry.status != NodeStatus::Member {
+                    return None;
+                }
+                let time_since_last = timestamp.checked_sub(nd_entry.last_seen_time)?;
+                Some((nid, time_since_last))
+            });
+            let has_nodes = nd_iter.clone().any(|_| true);
+            let all_nodes_timed_out = nd_iter
+                .clone()
+                .all(|(_nid, time_since_last)| time_since_last > max_seen_time_yellow);
+            if all_nodes_timed_out && has_nodes {
+                log::info!("All nodes have timed out, which probably means some network issue. Remove ourselves from the network.");
+                // This message will probably not reach the other nodes,
+                // but there will be some updates of internal state.
+                return self.self_pause(timestamp);
             }
-            if nd_entry.status != NodeStatus::Member {
-                continue;
-            }
-            let Some(time_since_last) = timestamp.checked_sub(nd_entry.last_seen_time) else { continue };
-            if time_since_last > max_seen_time_red + add_val {
-                log::info!("Starting vote on pausing timed out node {nid:?}.");
-                nids.push(nid.0.to_owned());
+            for (nid, time_since_last) in nd_iter {
+                if time_since_last > max_seen_time_red + add_val {
+                    log::info!("Starting vote on pausing timed out node {nid:?}.");
+                    nids.push(nid.0.to_owned());
+                }
             }
         }
         for nid in nids {
