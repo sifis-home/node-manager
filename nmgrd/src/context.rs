@@ -145,7 +145,7 @@ impl Context {
                 }
             }
             _ = self.keepalive_interval.tick() => {
-                if !self.node.shared_key().is_empty() {
+                if !self.node.shared_key().is_empty() && self.should_send_keepalive()? {
                     let resp = self.node.make_keepalive(timestamp()?)?;
                     self.handle_responses(&resp).await?;
 
@@ -470,6 +470,18 @@ impl Context {
             ret.pop();
         }
         ret
+    }
+    fn should_send_keepalive(&self) -> Result<bool, Error> {
+        if !self.cfg.debug_sometimes_send_keepalive {
+            // We are always sending keepalives
+            return Ok(true);
+        }
+        let ts = timestamp()?;
+        // The interval length, of both the interval in which we should send a
+        // keepalive, and in which we shouldn't.
+        const INTERVAL_MS: u64 = 30 * 1000;
+        let should_send = (ts / INTERVAL_MS) % 2 == 0;
+        Ok(should_send)
     }
 }
 

@@ -58,6 +58,9 @@ pub struct Config {
 
     #[serde(default)]
     debug_console: bool,
+
+    #[serde(default)]
+    pub debug_sometimes_send_keepalive: bool,
 }
 
 impl Config {
