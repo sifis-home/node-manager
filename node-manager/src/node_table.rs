@@ -17,7 +17,7 @@ pub enum NodeStatus {
     WaitingEntry,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct JosangTrust {
     pub belief: f64,
     pub disbelief: f64,

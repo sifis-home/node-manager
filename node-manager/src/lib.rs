@@ -1271,6 +1271,8 @@ impl NodeManager {
                 ToInc::Disbelief => nd_entry.trust.inc_disbelief(DELTA_DISBELIEF),
                 ToInc::Uncertainty => nd_entry.trust.inc_uncertainty(DELTA_UNCERTAINTY),
             }
+            log::debug!("Updating trust for {nd_id:?}: ({}, {}, {}).",
+                    nd_entry.trust.belief, nd_entry.trust.disbelief, nd_entry.trust.uncertainty);
         }
 
         if desc == Descision::Yes {
