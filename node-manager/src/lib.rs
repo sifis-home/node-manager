@@ -772,6 +772,10 @@ impl NodeManager {
     /// The `add_val` is some random value used to add to the threshold,
     /// to prevent multiple nodes from starting votes on the same time.
     pub fn check_timeouts(&mut self, timestamp: u64, add_val: u64) -> Result<Vec<Response>> {
+        if self.shared_key.is_empty() {
+            log::info!("Not currently member so we don't check timeouts");
+            return Ok(Vec::new());
+        }
         // If there is ongoing vote proposals, don't bring up anything new
         if self.vote_proposal.is_some() {
             return Ok(Vec::new());
