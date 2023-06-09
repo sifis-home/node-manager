@@ -126,17 +126,18 @@ impl Context {
     pub async fn run_loop_iter(&mut self) -> Result<(), Error> {
         tokio::select!(
             _ = self.make_member_interval.tick() => {
-                if !self.node.shared_key().is_empty() {
+                let has_key = !self.node.shared_key().is_empty();
+                if has_key {
                     self.never_had_key = false;
                 }
-                if self.never_had_key {
+                if !has_key && (self.never_had_key || (self.cfg.try_rejoin_on_pause() && self.should_send_keepalive()?)) {
                     let peers_count = self.swarm.behaviour().gossipsub.all_peers().count();
                     if peers_count > 0 {
                         log::info!("Broadcasting admin join message to {} peers", peers_count);
                         self.broadcast_admin_join_msg().await?;
                     }
                     let since_start = Instant::now() - self.start_time;
-                    if since_start > self.wait_until_set_own && !self.cfg.no_auto_first_node() {
+                    if since_start > self.wait_until_set_own && !self.cfg.no_auto_first_node() && self.never_had_key {
                         // Assume that we are the first node and generate our own shared key
                         log::info!("Didn't get any responses on lobby network. Setting shared key to a random one, assuming we are the first node.");
                         self.node.set_random_shared_key();
