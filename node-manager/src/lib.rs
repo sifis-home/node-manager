@@ -815,12 +815,15 @@ impl NodeManager {
                 let time_since_last = timestamp.checked_sub(nd_entry.last_seen_time)?;
                 Some((nid, time_since_last))
             });
-            let has_nodes = nd_iter.clone().any(|_| true);
+            let num_other_nodes = nd_iter.clone().count();
             let all_nodes_timed_out = nd_iter
                 .clone()
                 .all(|(_nid, time_since_last)| time_since_last > max_seen_time_yellow);
-            if all_nodes_timed_out && has_nodes {
-                log::info!("All nodes have timed out, which probably means some network issue. Remove ourselves from the network.");
+            if all_nodes_timed_out && num_other_nodes > 0 {
+                log::info!(
+                    "All {num_other_nodes} other member nodes have timed out, \
+                    which probably means some network issue. Remove ourselves from the network."
+                );
                 // This message will probably not reach the other nodes,
                 // but there will be some updates of internal state.
                 return self.self_pause(timestamp);
