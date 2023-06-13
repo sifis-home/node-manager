@@ -331,7 +331,7 @@ impl Default for Thresholds {
         Self {
             max_msg_age: 1_000,
             vote_proposal_lifetime: 400,
-            max_seen_time: (8_000, 10_000),
+            max_seen_time: (33_000, 45_000),
         }
     }
 }
