@@ -11,6 +11,7 @@ pub struct NodeManagerBuilder {
     node_id_generator: NodeIdGenerator,
     shared_key: Option<Vec<u8>>,
     thresholds: Thresholds,
+    sometimes_vote_wrongly: bool,
 }
 
 impl NodeManagerBuilder {
@@ -20,6 +21,7 @@ impl NodeManagerBuilder {
             node_id_generator,
             shared_key: None,
             thresholds: Thresholds::new(),
+            sometimes_vote_wrongly: false,
         }
     }
     pub fn shared_key(self, shared_key: Vec<u8>) -> Self {
@@ -37,9 +39,11 @@ impl NodeManagerBuilder {
             node_id_generator,
             shared_key,
             thresholds,
+            sometimes_vote_wrongly,
         } = self;
         let key_pair = PrivateKey::from_pkcs8_der(&key_pair_pkcs8_der).unwrap();
         let public_key_der = key_pair.to_public_key().to_public_key_der().unwrap();
+        let sometimes_wrongly_vote_counter = sometimes_vote_wrongly.then_some(0);
 
         let node_id = node_id_generator(&public_key_der).unwrap();
 
@@ -69,6 +73,7 @@ impl NodeManagerBuilder {
             vote_proposal: None,
             vote_suggestions: HashMap::new(),
             thresholds,
+            sometimes_wrongly_vote_counter,
         };
 
         if let Some(k) = shared_key {

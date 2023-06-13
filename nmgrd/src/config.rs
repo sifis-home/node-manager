@@ -64,6 +64,9 @@ pub struct Config {
 
     #[serde(default)]
     pub debug_sometimes_send_keepalive: bool,
+
+    #[serde(default)]
+    pub debug_sometimes_vote_wrongly: bool,
 }
 
 impl Config {

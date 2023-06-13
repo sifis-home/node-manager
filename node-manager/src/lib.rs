@@ -364,6 +364,8 @@ pub struct NodeManager {
     // TODO: table storing voting proposal cooldowns for nodes
     vote_suggestions: HashMap<Vec<u8>, bool>,
     thresholds: Thresholds,
+    /// Mostly there for debugging and experiment reasons
+    sometimes_wrongly_vote_counter: Option<u8>,
 }
 
 impl NodeManager {
@@ -554,7 +556,25 @@ impl NodeManager {
             Response::SetSharedKey(self.shared_key.clone()),
         ])
     }
-    fn decide_vote(&self, op: &VoteOperation, timestamp: u64) -> Descision {
+    fn decide_vote(&mut self, op: &VoteOperation, timestamp: u64) -> Descision {
+        let vote = self.decide_vote_inner(op, timestamp);
+        if let Some(mut ctr) = self.sometimes_wrongly_vote_counter {
+            const SOMETIMES_WRONGLY_VOTE_INTERVAL: u8 = 5;
+            if ctr == SOMETIMES_WRONGLY_VOTE_INTERVAL {
+                ctr = 0;
+            } else {
+                ctr += 1;
+            }
+            self.sometimes_wrongly_vote_counter = Some(ctr);
+            match vote {
+                Descision::No => Descision::Yes,
+                Descision::Yes => Descision::No,
+            }
+        } else {
+            vote
+        }
+    }
+    fn decide_vote_inner(&self, op: &VoteOperation, timestamp: u64) -> Descision {
         match op {
             VoteOperation::Remove(id) => {
                 if id == &self.node_id {
