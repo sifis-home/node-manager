@@ -202,8 +202,8 @@ impl Context {
                 SwarmEvent::ListenerError { .. } => {
                     log::info!("Lobby: Listener Error");
                 }
-                SwarmEvent::OutgoingConnectionError { .. } => {
-                    log::info!("Lobby: Outgoing connection error");
+                SwarmEvent::OutgoingConnectionError { peer_id, ..} => {
+                    log::info!("Lobby: Outgoing connection error{}", if let Some(p) = peer_id { format!(" for ID {p}") } else { String::new() });
                 }
                 SwarmEvent::ListenerClosed { .. } => {
                     log::info!("Lobby: Listener Closed");
