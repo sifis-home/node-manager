@@ -187,25 +187,25 @@ impl Context {
             event = self.swarm.select_next_some() => {
             match event {
                 SwarmEvent::ExpiredListenAddr { address, .. } => {
-                    log::info!("Address {address:?} expired");
+                    log::info!("Lobby: Address {address:?} expired");
                 }
                 SwarmEvent::ConnectionEstablished {..} => {
-                    log::info!("Connection with swarm member established");
+                    log::info!("Lobby: Connection with swarm member established");
                 }
                 SwarmEvent::ConnectionClosed { .. } => {
-                    log::info!("Connection with swarm member closed");
+                    log::info!("Lobby: Connection with swarm member closed");
                 }
                 SwarmEvent::ListenerError { .. } => {
-                    log::info!("Listener Error");
+                    log::info!("Lobby: Listener Error");
                 }
                 SwarmEvent::OutgoingConnectionError { .. } => {
-                    log::info!("Outgoing connection error");
+                    log::info!("Lobby: Outgoing connection error");
                 }
                 SwarmEvent::ListenerClosed { .. } => {
-                    log::info!("Listener Closed");
+                    log::info!("Lobby: Listener Closed");
                 }
                 SwarmEvent::NewListenAddr { address, .. } => {
-                    println!("Listening on {address:?} with ID {}", self.swarm.local_peer_id());
+                    println!("Lobby: Listening on {address:?} with ID {}", self.swarm.local_peer_id());
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Gossipsub(
                     libp2p::gossipsub::Event::Message {
@@ -218,14 +218,14 @@ impl Context {
                         return self.handle_lobby_msg(&message.data).await;
                     }
                     topic => {
-                        log::info!("Not able to recognize message on topic {topic}");
+                        log::info!("Lobby: Not able to recognize message on topic {topic}");
                     }
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
                     mdns::Event::Expired(list),
                 )) => {
                     for (peer, _) in list {
-                        log::info!("MDNS for peer {peer} expired");
+                        log::info!("Lobby: MDNS for peer {peer} expired");
                     }
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
@@ -236,7 +236,7 @@ impl Context {
                             .behaviour_mut()
                             .gossipsub
                             .add_explicit_peer(&peer);
-                        log::info!("Discovered peer {peer}");
+                        log::info!("Lobby: Discovered peer {peer}");
                     }
 
                 }
