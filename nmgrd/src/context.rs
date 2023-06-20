@@ -469,7 +469,7 @@ impl Context {
         }
         ret
     }
-    fn connected_to_dht(&self) -> bool {
+    pub fn connected_to_dht(&self) -> bool {
         self.ws_conn.conn_present()
     }
     fn should_send_keepalive(&self) -> Result<bool, Error> {
