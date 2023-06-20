@@ -435,16 +435,13 @@ impl Context {
     }
 
     async fn handle_rekeying(&self, key_override: Option<&[u8]>) -> Result<(), Error> {
-        let key = if let Some(key) = key_override {
-            if key.is_empty() {
-                // The reloader isn't handling empty keys well, as they cause crashes of the DHT.
-                // Instead, specify a hardcoded key. This isn't optimal but a good preliminary solution.
-                &[42; 32]
-            } else {
-                key
-            }
+        let key = key_override.unwrap_or(self.node.shared_key());
+        let key = if key.is_empty() {
+            // The reloader isn't handling empty keys well, as they cause crashes of the DHT.
+            // Instead, specify a hardcoded key. This isn't optimal but a good preliminary solution.
+            &[42; 32]
         } else {
-            self.node.shared_key()
+            key
         };
         let paths = self.cfg.rekeying_cfg_paths();
         log::info!("Rekeying: writing new shared key to {} files", paths.len());
