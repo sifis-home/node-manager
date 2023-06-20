@@ -583,13 +583,20 @@ impl NodeManager {
                     return Descision::No;
                 }
                 if let Some(sugg) = self.vote_suggestions.get(id) {
+                    log::info!(
+                        "Using stored suggestion '{sugg}' for voting descision on {}.",
+                        fmt_hex_arr(&id)
+                    );
                     if *sugg {
                         Descision::Yes
                     } else {
                         Descision::No
                     }
                 } else {
-                    log::info!("Falling back to random generator for voting descision on {id:?}.");
+                    log::info!(
+                        "Falling back to random generator for voting descision on {}.",
+                        fmt_hex_arr(&id)
+                    );
                     // Fallback to rng if the suggestion is not stored
                     // Default: accept, but deny in 1/8 of cases
                     // TODO: implement a trust based scheme here, instead of just random choice.
