@@ -80,6 +80,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             );
             println!("Shared key: {}", context::fmt_hex_arr(node.shared_key()));
             println!("Node manager table: {}", node.table_str());
+            println!("Connected to DHT: {}", if ctx.connected_to_dht() { "Yes" } else { "No" });
             println!("Own lobby ID: {}", ctx.lobby_local_peer_id_display());
             println!("Lobby peers: {}", ctx.lobby_peer_table_str());
         }

@@ -469,6 +469,9 @@ impl Context {
         }
         ret
     }
+    fn connected_to_dht(&self) -> bool {
+        self.ws_conn.conn_present()
+    }
     fn should_send_keepalive(&self) -> Result<bool, Error> {
         if !self.cfg.debug_sometimes_send_keepalive {
             // We are always sending keepalives

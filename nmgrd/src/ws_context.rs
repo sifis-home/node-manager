@@ -125,6 +125,9 @@ impl WsContext {
 
         Ok(())
     }
+    pub fn conn_present(&mut self) -> bool {
+        matches!(self.ws_conn, ConnOrWaiting::Conn(..))
+    }
 }
 
 fn make_backoff() -> ExponentialBackoff {
