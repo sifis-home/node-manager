@@ -57,6 +57,9 @@ pub struct Config {
     no_auto_first_node: bool,
 
     #[serde(default)]
+    no_self_auto_pause: bool,
+
+    #[serde(default)]
     try_rejoin_on_pause: bool,
 
     #[serde(default)]
@@ -186,6 +189,9 @@ impl Config {
     }
     pub fn no_auto_first_node(&self) -> bool {
         self.no_auto_first_node
+    }
+    pub fn no_self_auto_pause(&self) -> bool {
+        self.no_self_auto_pause
     }
     pub fn try_rejoin_on_pause(&self) -> bool {
         self.try_rejoin_on_pause

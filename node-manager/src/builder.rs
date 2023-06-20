@@ -11,6 +11,7 @@ pub struct NodeManagerBuilder {
     node_id_generator: NodeIdGenerator,
     shared_key: Option<Vec<u8>>,
     thresholds: Thresholds,
+    self_should_auto_pause: bool,
     sometimes_vote_wrongly: bool,
 }
 
@@ -21,6 +22,7 @@ impl NodeManagerBuilder {
             node_id_generator,
             shared_key: None,
             thresholds: Thresholds::new(),
+            self_should_auto_pause: true,
             sometimes_vote_wrongly: false,
         }
     }
@@ -33,12 +35,19 @@ impl NodeManagerBuilder {
     pub fn thresholds(self, thresholds: Thresholds) -> Self {
         Self { thresholds, ..self }
     }
+    pub fn self_should_auto_pause(self, self_should_auto_pause: bool) -> Self {
+        Self {
+            self_should_auto_pause,
+            ..self
+        }
+    }
     pub fn build(self) -> NodeManager {
         let Self {
             key_pair_pkcs8_der,
             node_id_generator,
             shared_key,
             thresholds,
+            self_should_auto_pause,
             sometimes_vote_wrongly,
         } = self;
         let key_pair = PrivateKey::from_pkcs8_der(&key_pair_pkcs8_der).unwrap();
@@ -73,6 +82,7 @@ impl NodeManagerBuilder {
             vote_proposal: None,
             vote_suggestions: HashMap::new(),
             thresholds,
+            self_should_auto_pause,
             sometimes_wrongly_vote_counter,
         };
 

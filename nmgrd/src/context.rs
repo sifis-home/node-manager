@@ -53,6 +53,8 @@ impl Context {
         let key_der = priv_key_pem_to_der(&key_pem);
         let mut builder = NodeManagerBuilder::new(&key_der, id_gen_fn);
 
+        builder = builder.self_should_auto_pause(!cfg.no_self_auto_pause());
+
         if let Some(key) = cfg.shared_key() {
             builder = builder.shared_key(key.to_vec());
         }
