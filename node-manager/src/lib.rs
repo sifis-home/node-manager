@@ -835,9 +835,16 @@ impl NodeManager {
                 }
             }
         }
-        for nid in nids {
-            let op = VoteOperation::Pause(nid);
+        // More than one ongoing vote at the same time is not supported
+        if let Some(nid) = nids.first() {
+            let op = VoteOperation::Pause(nid.clone());
             res.extend(self.start_vote_op(timestamp, op)?.into_iter());
+        }
+        if nids.len() > 1 {
+            log::info!(
+                "Found {} many nodes to start vote on, only starting vote on first.",
+                nids.len()
+            );
         }
         Ok(res)
     }
