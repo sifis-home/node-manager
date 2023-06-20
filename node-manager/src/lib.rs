@@ -915,11 +915,14 @@ impl NodeManager {
             cbs_lobby
         };
         if !can_be_sent {
-            log::info!("Ignoring message that was sent on the wrong network (members={from_members_network}).");
+            log::info!("Ignoring {} message that was sent on the wrong network (members={from_members_network}).", msg.operation.kind_str());
             return Ok(Vec::new());
         }
         if msg.signer_id == self.node_id {
-            log::debug!("Ignoring message that was sent by ourselves.");
+            log::debug!(
+                "Ignoring {} message that was sent by ourselves.",
+                msg.operation.kind_str()
+            );
             return Ok(Vec::new());
         }
         let msg_digest = msg.digest();
@@ -930,7 +933,10 @@ impl NodeManager {
             false
         };
         if !key_for_us && !self.digest_is_valid_for_msg(&msg_digest, &msg) {
-            log::info!("Ignoring message that had an invalid signature or unknown signer.");
+            log::info!(
+                "Ignoring {} message that had an invalid signature or unknown signer.",
+                msg.operation.kind_str()
+            );
             return Ok(Vec::new());
         }
         let max_msg_age = self.thresholds.max_msg_age;
@@ -938,14 +944,19 @@ impl NodeManager {
             && msg.timestamp < timestamp - max_msg_age
         {
             let msg_age = timestamp - msg.timestamp;
-            log::info!("Ignoring message with too large age {msg_age} (max={max_msg_age}).");
+            log::info!(
+                "Ignoring {} message with too large age {msg_age} (max={max_msg_age}).",
+                msg.operation.kind_str()
+            );
             return Ok(Vec::new());
         }
         if from_members_network
             && (self.shared_key.is_empty() || self.state == ManagerState::WaitingForKey)
         {
-            // TODO should this be an assertion failure? Maybe not, it might lead to DOS vulnerabilities.
-            log::info!("Ignoring message sent on members network while we are not actually on it.");
+            log::info!(
+                "Ignoring {} message sent on members network while we are not actually on it.",
+                msg.operation.kind_str()
+            );
             return Ok(Vec::new());
         }
 
