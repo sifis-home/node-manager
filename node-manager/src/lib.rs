@@ -80,7 +80,7 @@ impl VoteProposal {
         for (node_id, v_en) in self.votes.iter() {
             let nid = NodeId::from_data(node_id);
             let Some(nd_entry) = nodes.get(&nid) else {
-                log::info!("Couldn't find node {} in node table", fmt_hex_arr(&node_id));
+                log::info!("Couldn't find node {nid:?} in node table");
                 continue
             };
             let nd_rep = nd_entry.trust.reputation();

@@ -125,7 +125,7 @@ impl WsContext {
 
         Ok(())
     }
-    pub fn conn_present(&mut self) -> bool {
+    pub fn conn_present(&self) -> bool {
         matches!(self.ws_conn, ConnOrWaiting::Conn(..))
     }
 }
