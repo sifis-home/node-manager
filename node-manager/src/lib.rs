@@ -801,7 +801,7 @@ impl NodeManager {
             return Ok(Vec::new());
         }
         let max_seen_time_red = self.thresholds.max_seen_time.1;
-        let max_seen_time_yellow = self.thresholds.max_seen_time.0;
+        //let max_seen_time_yellow = self.thresholds.max_seen_time.0;
         let mut res = Vec::new();
         let mut nids = Vec::new();
         {
@@ -815,7 +815,7 @@ impl NodeManager {
                 let time_since_last = timestamp.checked_sub(nd_entry.last_seen_time)?;
                 Some((nid, time_since_last))
             });
-            let num_other_nodes = nd_iter.clone().count();
+            /*let num_other_nodes = nd_iter.clone().count();
             let all_nodes_timed_out = nd_iter
                 .clone()
                 .all(|(_nid, time_since_last)| time_since_last > max_seen_time_yellow);
@@ -827,7 +827,7 @@ impl NodeManager {
                 // This message will probably not reach the other nodes,
                 // but there will be some updates of internal state.
                 return self.self_pause(timestamp);
-            }
+            }*/
             for (nid, time_since_last) in nd_iter {
                 if time_since_last > max_seen_time_red + add_val {
                     log::info!("Starting vote on pausing timed out node {nid:?}.");
