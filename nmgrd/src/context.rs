@@ -82,7 +82,7 @@ impl Context {
         let mut make_member_interval = tokio::time::interval(Duration::from_millis(2000));
         make_member_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-        const KEEPALIVE_TIMER_INTERVAL: u64 = 1060;
+        const KEEPALIVE_TIMER_INTERVAL: u64 = 1157;
         let mut keepalive_interval =
             tokio::time::interval(Duration::from_millis(KEEPALIVE_TIMER_INTERVAL));
         keepalive_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
