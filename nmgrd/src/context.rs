@@ -15,6 +15,7 @@ use node_manager::keys::PublicKey;
 use node_manager::{timestamp, NodeManager, NodeManagerBuilder, Response};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tokio::time::{Interval, MissedTickBehavior};
@@ -227,21 +228,26 @@ impl Context {
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
                     mdns::Event::Expired(list),
                 )) => {
-                    for (peer, _) in list {
+                    // Deduplicate the peers by going through a HashSet
+                    let peers = list.map(|(peer, _)| peer)
+                        .collect::<HashSet<_>>();
+                    for peer in peers {
                         log::info!("Lobby: MDNS for peer {peer} expired");
                     }
                 }
                 SwarmEvent::Behaviour(crate::lobby_network::OutEvent::Mdns(
                     mdns::Event::Discovered(list),
                 )) => {
-                    for (peer, _) in list {
+                    // Deduplicate the peers by going through a HashSet
+                    let peers = list.map(|(peer, _)| peer)
+                        .collect::<HashSet<_>>();
+                    for peer in peers {
                         self.swarm
                             .behaviour_mut()
                             .gossipsub
                             .add_explicit_peer(&peer);
                         log::info!("Lobby: Discovered peer {peer}");
                     }
-
                 }
                 _ => {}
                 }
