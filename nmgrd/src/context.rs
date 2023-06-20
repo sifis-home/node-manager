@@ -127,10 +127,11 @@ impl Context {
         tokio::select!(
             _ = self.make_member_interval.tick() => {
                 let has_key = !self.node.shared_key().is_empty();
+                let conn_present = self.ws_conn.conn_present();
                 if has_key {
                     self.never_had_key = false;
                 }
-                if !has_key && (self.never_had_key || (self.cfg.try_rejoin_on_pause() && self.should_send_keepalive()?)) {
+                if !has_key && conn_present && (self.never_had_key || (self.cfg.try_rejoin_on_pause() && self.should_send_keepalive()?)) {
                     let peers_count = self.swarm.behaviour().gossipsub.all_peers().count();
                     if peers_count > 0 {
                         log::info!("Broadcasting admin join message to {} peers", peers_count);
