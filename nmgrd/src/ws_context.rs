@@ -70,7 +70,11 @@ impl WsContext {
                                 let TsError::Io(e) = e else {
                                     return false;
                                 };
-                                e.kind() == ErrorKind::ConnectionRefused
+                                let kind = e.kind();
+                                matches!(
+                                    kind,
+                                    ErrorKind::ConnectionRefused | ErrorKind::ConnectionReset
+                                )
                             }
                             if !should_continue(&e) {
                                 Err(e)?;
