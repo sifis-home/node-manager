@@ -12,8 +12,8 @@ mod ws_context;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     env_logger::builder().try_init()?;
-    let (cfg, cfg_path) = load_config()?;
-    run(cfg, &cfg_path).await?;
+    let (cfg, _cfg_path) = load_config()?;
+    run(cfg).await?;
     Ok(())
 }
 
@@ -32,9 +32,9 @@ fn load_config() -> Result<(Config, String), Error> {
 }
 
 #[allow(unused)]
-async fn run(cfg: Config, cfg_path: &str) -> Result<(), Error> {
+async fn run(cfg: Config) -> Result<(), Error> {
     let debug_console = cfg.debug_console() || std::env::var("NMGR_DEBUG_CONSOLE").is_ok();
-    let mut ctx = Context::start(cfg, cfg_path).await?;
+    let mut ctx = Context::start(cfg).await?;
 
     // main loop
     if !debug_console {

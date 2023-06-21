@@ -26,8 +26,6 @@ const VOTE_SUGGESTION_TOPIC: &str = "SIFIS:node-manager-kick-vote-sugg";
 
 pub struct Context {
     cfg: Config,
-    #[allow(unused)]
-    cfg_path: String,
     topic: Topic,
     swarm: Swarm,
     ws_conn: WsContext,
@@ -41,7 +39,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub async fn start(cfg: Config, cfg_path: &str) -> Result<Self, Error> {
+    pub async fn start(cfg: Config) -> Result<Self, Error> {
         fn id_gen_fn(data: &[u8]) -> Result<Vec<u8>, ()> {
             let mut hasher = Sha256::new();
             hasher.update(data);
@@ -80,8 +78,6 @@ impl Context {
 
         let topic = Topic::new(LOBBY_TOPIC);
 
-        let cfg_path = cfg_path.to_string();
-
         let mut make_member_interval = tokio::time::interval(Duration::from_millis(2000));
         make_member_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
@@ -103,7 +99,6 @@ impl Context {
 
         let mut this = Self {
             cfg,
-            cfg_path,
             swarm,
             topic,
             ws_conn,
