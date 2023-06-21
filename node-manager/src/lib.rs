@@ -132,9 +132,9 @@ pub enum Descision {
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub enum Operation {
-    // ------------------------------------
+    // -------------------------------------------------
     // Operations for the lobby network:
-    // ------------------------------------
+    // -------------------------------------------------
     /// The admin key adds a specific node to the network
     ///
     /// Data: (node id)
@@ -146,9 +146,19 @@ pub enum Operation {
     /// Data: (key, node id, node table)
     EncapsulatedKey(Vec<u8>, Vec<u8>, Vec<u8>),
 
-    // ------------------------------------
+    // -------------------------------------------------
+    // Operations for both lobby and members networks:
+    // -------------------------------------------------
+    /// Sends a ping message to all nodes
+    Ping,
+    /// Response to ping event (either on lobby or members network)
+    ///
+    /// Data: (node id of the originator, timestamp of the original ping)
+    Pong(Vec<u8>, u64),
+
+    // -------------------------------------------------
     // Operations for the members network:
-    // ------------------------------------
+    // -------------------------------------------------
     /// A proposal for a vote
     VoteProposal(VoteOperation),
     /// Participation in a vote proposal
@@ -174,6 +184,7 @@ impl Operation {
         use Operation::*;
         match self {
             AddByAdmin(..) | SelfRejoin | EncapsulatedKey(..) => (true, false),
+            Ping | Pong(..) => (true, true),
             VoteProposal(..) | EncapsulatedKeys(..) | Vote(..) | SelfPause | SelfRemove
             | KeepAlive(..) => (false, true),
         }
@@ -207,6 +218,8 @@ impl Operation {
             AddByAdmin(..) => "AddByAdmin",
             SelfRejoin => "SelfRejoin",
             EncapsulatedKey(..) => "EncapsulatedKey",
+            Ping => "Ping",
+            Pong(..) => "Pong",
             VoteProposal(..) => "VoteProposal",
             EncapsulatedKeys(..) => "EncapsulatedKeys",
             Vote(..) => "Vote",
@@ -698,6 +711,20 @@ impl NodeManager {
         Ok(vec![Response::Message(msg, false)])
     }
 
+    /// Broadcasts a ping message
+    ///
+    /// Like in [`handle_msg`](Self::handle_msg), the caller has to broadcast
+    /// the message.
+    pub fn ping(&self, timestamp: u64, for_members_network: bool) -> Result<Vec<Response>> {
+        let op = Operation::Ping;
+
+        let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+            log::info!("Couldn't sign ping msg. Not creating ping msg.");
+            return Ok(Vec::new());
+        };
+        Ok(vec![Response::Message(msg, for_members_network)])
+    }
+
     /// Obtain a complete node id from a partial node id
     ///
     /// The function received a (potentially partial) node id as an input,
@@ -1103,6 +1130,39 @@ impl NodeManager {
                         log::info!("Couldn't find node receiving the encapsulated key in the node table. Ignoring EncapsulatedKey message.");
                     }
                 }
+            }
+
+            // Messages that can be sent via the lobby as well as the members network
+            Operation::Ping => {
+                // Respond with a pong
+                let op = Operation::Pong(msg.signer_id.clone(), msg.timestamp);
+                let Ok(msg) = op.sign(timestamp, &self.node_id, &self.key_pair) else {
+                    log::info!("Couldn't sign pong msg.");
+                    return Ok(Vec::new());
+                };
+                let net = if from_members_network {
+                    "members network"
+                } else {
+                    "lobby"
+                };
+                log::info!(
+                    "Received ping message from {}, on the {net}, responding with pong",
+                    fmt_hex_arr(&msg.signer_id)
+                );
+                // Send the pong back on right the same medium as it was received
+                return Ok(vec![Response::Message(msg, from_members_network)]);
+            }
+            Operation::Pong(node_id, ts_orig) => {
+                let ts_diff = timestamp.saturating_sub(ts_orig);
+                let for_str = if node_id == self.node_id {
+                    "us".to_string()
+                } else {
+                    fmt_hex_arr(&node_id)
+                };
+                log::info!(
+                    "Received pong message for {for_str} from {} after {ts_diff}ms",
+                    fmt_hex_arr(&msg.signer_id)
+                );
             }
 
             // Members messages

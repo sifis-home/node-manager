@@ -433,6 +433,11 @@ impl Context {
         self.handle_responses(&msg_self_rejoin).await?;
         Ok(())
     }
+    pub async fn send_ping(&mut self, for_members_network: bool) -> Result<(), Error> {
+        let msg_ping = self.node.ping(timestamp()?, for_members_network)?;
+        self.handle_responses(&msg_ping).await?;
+        Ok(())
+    }
     pub async fn start_vote(&mut self, id: &[u8]) -> Result<(), Error> {
         let ts = timestamp().map_err(|err| anyhow::anyhow!("{:?}", err))?;
         let msgs_vote = self

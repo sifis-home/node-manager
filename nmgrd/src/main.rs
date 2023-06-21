@@ -93,6 +93,18 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
         "rejoin" | "r" => {
             ctx.self_rejoin().await.unwrap();
         }
+        "ping" => {
+            let for_members_network = match args.next() {
+                Some(s) if s.to_lowercase() == "lobby" => false,
+                Some(s) if s.to_lowercase() == "members" => true,
+                Some(s) => {
+                    println!("error: wrong network specifier '{s}' for ping");
+                    true
+                }
+                None => true,
+            };
+            ctx.send_ping(for_members_network).await.unwrap();
+        }
         // TODO turn this into an if-let guard once those are stable
         "start-vote" => {
             if let Some(id_str) = args.next() {
@@ -116,6 +128,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             println!("info|i|t");
             println!("pause|p");
             println!("rejoin|r");
+            println!("ping (lobby|members|)");
             println!("start-vote <id>");
         }
     }
