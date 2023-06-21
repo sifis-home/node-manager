@@ -339,13 +339,17 @@ impl Context {
             log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
             return Ok(());
         };
+        let start_vote = value
+            .get("start_vote")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(self.cfg.auto_start_vote_on_suggestion());
         log::info!("saving {kind_str}vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
         let resp = self.node.save_vote_suggestion(
             &topic_key.subject,
             timestamp()?,
             should_kick,
             deleted,
-            self.cfg.auto_start_vote_on_suggestion(),
+            start_vote,
         )?;
 
         self.handle_responses(&resp).await?;
