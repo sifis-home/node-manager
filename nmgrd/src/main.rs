@@ -144,3 +144,24 @@ fn parse_hex(s: &str) -> Option<Vec<u8>> {
     }
     Some(res)
 }
+
+#[tokio::test]
+#[cfg(test)]
+async fn simple_test_run() {
+    // Just to ensure that one run of the loop does not cause any errors.
+    const CFG: &str = r#"
+    # Admin key:
+    # /csvh/PjgRobztEuThwVb/EG3mUJ8oRW1g0na/w6mHPX3r/SEmRqFyMb0jzHar2iikZbN944S4/CiMoVnW/CtA==
+    dht_url = "ws://127.0.0.1:32101/ws"
+    admin_key = "IAAAAAAAAACsAMnUq3dqX8BeRXkLaPCEfWubkD74Tt5IYglkJwflUNfev9ISZGoXIxvSPMdqvaKKRls33jhLj8KIyhWdb8K0"
+    priv_key = "l7ZUIqe4fyMrpmqQ5Fhz1w4PlGraid/rP2NbAKjcRmulgZxO9pH/u3jbXwICz/C6aC2BmGLlpUy2n8YjRWHItw=="
+    admin_join_msg = "MvRYs4gBAAAFAAAAAAAAAGFkbWluQAAAAAAAAACJUBWRW5/Dq2ioi0GkoMSju03huDfqVbVyg85v1ldacq0sBoyb/riSS5OTeZguC0Dz5EiwSZeEA2aqddvbKLAGAAAAAEgAAAAAAAAAIAAAAAAAAAAYtsDUPGmkwq2Q/tgovIpvovfgDqJ1INPrFy1x6gnnfaWBnE72kf+7eNtfAgLP8LpoLYGYYuWlTLafxiNFYci3"
+    lobby_key = "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1fffff"
+    shared_key = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    lobby_loopback_only = true
+    "#;
+
+    let cfg: Config = toml::from_str(CFG).unwrap();
+    let mut ctx = Context::start(cfg).await.unwrap();
+    ctx.run_loop_iter().await.unwrap();
+}
