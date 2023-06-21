@@ -790,9 +790,11 @@ impl NodeManager {
     pub fn save_vote_suggestion(
         &mut self,
         subject: &[u8],
+        timestamp: u64,
         should_kick: bool,
         deleted: bool,
-    ) -> Result<()> {
+        auto_start_vote: bool,
+    ) -> Result<Vec<Response>> {
         let entry = self.vote_suggestions.entry(subject.to_vec());
         if deleted {
             if let Entry::Occupied(e) = entry {
@@ -808,8 +810,11 @@ impl NodeManager {
                     e.insert(should_kick);
                 }
             }
+            if auto_start_vote && should_kick && self.vote_proposal.is_none() {
+                return self.start_vote_op(timestamp, VoteOperation::Remove(subject.to_owned()));
+            }
         }
-        Ok(())
+        Ok(Vec::new())
     }
 
     /// Creates a keepalive message to be sent to the outside world

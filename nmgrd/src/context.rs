@@ -284,8 +284,15 @@ impl Context {
                     return Ok(());
                 };
                 log::info!("saving vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
-                self.node
-                    .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
+                let resp = self.node.save_vote_suggestion(
+                    &topic_key.subject,
+                    timestamp()?,
+                    should_kick,
+                    deleted,
+                    self.cfg.auto_start_vote_on_suggestion(),
+                )?;
+
+                self.handle_responses(&resp).await?;
             }
         }
         Ok(())
@@ -328,8 +335,15 @@ impl Context {
                     };
                     let deleted = false;
                     log::info!("saving initial vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
-                    self.node
-                        .save_vote_suggestion(&topic_key.subject, should_kick, deleted)?;
+                    let resp = self.node.save_vote_suggestion(
+                        &topic_key.subject,
+                        timestamp()?,
+                        should_kick,
+                        deleted,
+                        self.cfg.auto_start_vote_on_suggestion(),
+                    )?;
+
+                    self.handle_responses(&resp).await?;
                 }
             }
             _ => {

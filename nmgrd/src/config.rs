@@ -70,6 +70,9 @@ pub struct Config {
     debug_console: bool,
 
     #[serde(default)]
+    auto_start_vote_on_suggestion: bool,
+
+    #[serde(default)]
     pub debug_sometimes_send_keepalive: bool,
 
     #[serde(default)]
@@ -202,6 +205,9 @@ impl Config {
     }
     pub fn debug_console(&self) -> bool {
         self.debug_console
+    }
+    pub fn auto_start_vote_on_suggestion(&self) -> bool {
+        self.auto_start_vote_on_suggestion
     }
 }
 
