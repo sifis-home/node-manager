@@ -20,7 +20,7 @@ pub(crate) fn parse_hex_key(s: &str) -> Result<[u8; KEY_SIZE], String> {
         }
         Ok(r)
     } else {
-        Err(String::from("Len Error"))
+        Err(format!("Len Error: expected {} but got {}", KEY_SIZE * 2, s.len()))
     }
 }
 
