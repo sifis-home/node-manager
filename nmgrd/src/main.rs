@@ -31,7 +31,6 @@ fn load_config() -> Result<(Config, String), Error> {
     Ok((cfg, cfg_file_path))
 }
 
-#[allow(unused)]
 async fn run(cfg: Config) -> Result<(), Error> {
     let debug_console = cfg.debug_console() || std::env::var("NMGR_DEBUG_CONSOLE").is_ok();
     let mut ctx = Context::start(cfg).await?;
@@ -57,8 +56,6 @@ async fn run(cfg: Config) -> Result<(), Error> {
             }
         }
     }
-
-    Ok(())
 }
 
 async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Context) {
