@@ -107,6 +107,8 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
                 } else {
                     println!("error: couldn't find node id '{id_str}' or it was not unique");
                 }
+            } else {
+                println!("error: start-vote command missing an argument.");
             }
         }
         _ => {
