@@ -113,9 +113,9 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
         }
         _ => {
             println!("Commands:");
-            println!("info");
-            println!("pause");
-            println!("rejoin");
+            println!("info|i|t");
+            println!("pause|p");
+            println!("rejoin|r");
             println!("start-vote <id>");
         }
     }
