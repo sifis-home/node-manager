@@ -45,7 +45,7 @@ async fn run(cfg: Config, cfg_path: &str) -> Result<(), Error> {
         // TODO: This might not be 100% optimal as for interactive uses, tokio docs
         // recommend using a synchronous thread instead of Stdin.
         let mut stdin = tokio::io::BufReader::new(tokio::io::stdin()).lines();
-        println!("Debug console active");
+        println!("Debug console active. Enter an invalid command to get a command listing.");
         loop {
             tokio::select! {
                 line = stdin.next_line() => {
