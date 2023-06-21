@@ -1159,8 +1159,13 @@ impl NodeManager {
                 } else {
                     fmt_hex_arr(&node_id)
                 };
+                let net = if from_members_network {
+                    "members"
+                } else {
+                    "lobby"
+                };
                 log::info!(
-                    "Received pong message for {for_str} from {} after {ts_diff}ms",
+                    "Received {net} pong message for {for_str} from {} after {ts_diff}ms",
                     fmt_hex_arr(&msg.signer_id)
                 );
             }
