@@ -279,20 +279,8 @@ impl Context {
                     // We aren't really interested in suggestions for other nodes
                     return Ok(());
                 }
-                let Some(should_kick) = value.get("kick").and_then(|v| v.as_bool()) else {
-                    log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
-                    return Ok(());
-                };
-                log::info!("saving vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
-                let resp = self.node.save_vote_suggestion(
-                    &topic_key.subject,
-                    timestamp()?,
-                    should_kick,
-                    deleted,
-                    self.cfg.auto_start_vote_on_suggestion(),
-                )?;
-
-                self.handle_responses(&resp).await?;
+                self.handle_vote_suggestion(topic_key, value, deleted, "")
+                    .await?;
             }
         }
         Ok(())
@@ -329,27 +317,38 @@ impl Context {
                         log::warn!("Failed to parse vote suggestion: Can't parse UUID '{}'", entry.topic_uuid);
                         return Ok(());
                     };
-                    let Some(should_kick) = entry.value.get("kick").and_then(|v| v.as_bool()) else {
-                        log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
-                        return Ok(());
-                    };
                     let deleted = false;
-                    log::info!("saving initial vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
-                    let resp = self.node.save_vote_suggestion(
-                        &topic_key.subject,
-                        timestamp()?,
-                        should_kick,
-                        deleted,
-                        self.cfg.auto_start_vote_on_suggestion(),
-                    )?;
-
-                    self.handle_responses(&resp).await?;
+                    self.handle_vote_suggestion(topic_key, entry.value, deleted, "initial ")
+                        .await?;
                 }
             }
             _ => {
                 log::warn!("Received invalid sync ws msg from DHT");
             }
         }
+        Ok(())
+    }
+    async fn handle_vote_suggestion(
+        &mut self,
+        topic_key: VoteSuggKey,
+        value: serde_json::Value,
+        deleted: bool,
+        kind_str: &str,
+    ) -> Result<(), Error> {
+        let Some(should_kick) = value.get("kick").and_then(|v| v.as_bool()) else {
+            log::warn!("Failed to parse vote suggestion: No 'kick' bool payload");
+            return Ok(());
+        };
+        log::info!("saving {kind_str}vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
+        let resp = self.node.save_vote_suggestion(
+            &topic_key.subject,
+            timestamp()?,
+            should_kick,
+            deleted,
+            self.cfg.auto_start_vote_on_suggestion(),
+        )?;
+
+        self.handle_responses(&resp).await?;
         Ok(())
     }
     pub async fn broadcast_admin_join_msg(&mut self) -> Result<(), Error> {
