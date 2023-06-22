@@ -170,10 +170,10 @@ pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
         #[allow(clippy::comparison_chain)]
         let since_last_seen = if since_last_seen < 10_000 {
             format!("{since_last_seen:>4?}")
-        } else if since_last_seen == 10_000 {
-            "=10k".to_string()
+        } else if since_last_seen == 100_000 {
+            "=100k".to_string()
         } else {
-            ">10k".to_string()
+            ">100k".to_string()
         };
         writeln!(
             res,
