@@ -99,7 +99,10 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
                 Some(s) if s.to_lowercase() == "lobby" => false,
                 Some(s) if s.to_lowercase() == "members" => true,
                 Some(s) => {
-                    println!("error: wrong network specifier '{s}' for ping");
+                    println!(
+                        "error: wrong network specifier '{s}' for ping. \
+                        Need to be either 'lobby' or 'members'."
+                    );
                     true
                 }
                 None => true,
