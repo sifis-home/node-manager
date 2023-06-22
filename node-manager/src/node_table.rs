@@ -165,12 +165,13 @@ pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
     for (nd, nd_entry) in nodes.iter() {
         use std::fmt::Write;
         let since_last_seen = ts.saturating_sub(nd_entry.last_seen_time);
+        #[allow(clippy::comparison_chain)]
         let since_last_seen = if since_last_seen < 10_000 {
             format!("{since_last_seen:>4?}")
         } else if since_last_seen == 10_000 {
-            format!("=10k")
+            "=10k".to_string()
         } else {
-            format!(">10k")
+            ">10k".to_string()
         };
         writeln!(
             res,
