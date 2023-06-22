@@ -71,12 +71,13 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
     match cmd {
         "info" | "i" | "t" => {
             let node = &ctx.node;
+            let ts = node_manager::timestamp().unwrap();
             println!(
                 "Own node manager ID: {}",
                 context::fmt_hex_arr(node.node_id())
             );
             println!("Shared key: {}", context::fmt_hex_arr(node.shared_key()));
-            println!("Node manager table: {}", node.table_str_ext());
+            println!("Node manager table: {}", node.table_str_ext(ts));
             println!(
                 "Connected to DHT: {}",
                 if ctx.connected_to_dht() { "Yes" } else { "No" }
