@@ -39,8 +39,8 @@ impl VoteOperation {
 impl Debug for VoteOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            VoteOperation::Remove(op) => write!(f, "remove {}", fmt_hex_arr(&op)),
-            VoteOperation::Pause(op) => write!(f, "pause {}", fmt_hex_arr(&op)),
+            VoteOperation::Remove(op) => write!(f, "remove {}", fmt_hex_arr(op)),
+            VoteOperation::Pause(op) => write!(f, "pause {}", fmt_hex_arr(op)),
         }
     }
 }
