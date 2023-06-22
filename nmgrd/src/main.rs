@@ -143,7 +143,8 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
         }
         _ => {
             println!("Commands:");
-            println!("info|i|t");
+            println!("info|i|t|td");
+            println!("config|c");
             println!("pause|p");
             println!("rejoin|r");
             println!("ping (lobby|members|)");
