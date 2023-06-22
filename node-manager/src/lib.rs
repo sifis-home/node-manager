@@ -15,7 +15,7 @@ mod builder;
 pub mod keys;
 mod node_table;
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone)]
 pub enum VoteOperation {
     /// Remove a specified node
     ///
@@ -32,6 +32,15 @@ impl VoteOperation {
         match self {
             VoteOperation::Remove(..) => "Remove",
             VoteOperation::Pause(..) => "Pause",
+        }
+    }
+}
+
+impl Debug for VoteOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self {
+            VoteOperation::Remove(op) => write!(f, "remove {}", fmt_hex_arr(&op)),
+            VoteOperation::Pause(op) => write!(f, "pause {}", fmt_hex_arr(&op)),
         }
     }
 }
@@ -759,6 +768,7 @@ impl NodeManager {
             log::info!("Couldn't sign vote proposal msg.");
             return Ok(Vec::new());
         };
+        log::info!("Starting vote with operation {operation:?}...");
 
         let mut votes: HashMap<_, _> = self
             .nodes
