@@ -159,3 +159,26 @@ pub(crate) fn table_str<T>(nodes: &NodeTable<T>) -> String {
     }
     res
 }
+
+pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
+    let mut res = String::new();
+    for (nd, nd_entry) in nodes.iter() {
+        use std::fmt::Write;
+        let since_last_seen = ts.saturating_sub(nd_entry.last_seen_time);
+        let since_last_seen = if since_last_seen < 10_000 {
+            format!("{since_last_seen:>4?}")
+        } else if since_last_seen == 10_000 {
+            format!("=10k")
+        } else {
+            format!(">10k")
+        };
+        writeln!(
+            res,
+            "    {}  {:>12?}  {since_last_seen}",
+            super::fmt_hex_arr(&nd.0),
+            nd_entry.status,
+        )
+        .unwrap();
+    }
+    res
+}

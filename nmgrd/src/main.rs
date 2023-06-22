@@ -76,7 +76,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
                 context::fmt_hex_arr(node.node_id())
             );
             println!("Shared key: {}", context::fmt_hex_arr(node.shared_key()));
-            println!("Node manager table: {}", node.table_str());
+            println!("Node manager table: {}", node.table_str_ext());
             println!(
                 "Connected to DHT: {}",
                 if ctx.connected_to_dht() { "Yes" } else { "No" }

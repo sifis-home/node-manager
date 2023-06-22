@@ -519,6 +519,10 @@ impl NodeManager {
     pub fn table_str(&self) -> String {
         node_table::table_str(&self.nodes)
     }
+    /// Like [table_str](Self::table_str), but prints more detail
+    pub fn table_str_ext(&self, timestamp: u64) -> String {
+        node_table::table_str_ext(&self.nodes, timestamp)
+    }
     /// Whether the given node should respond to the specified question on the lobby network
     fn is_node_that_responds_lobby(&self, _timestamp: u64) -> bool {
         if self.shared_key.is_empty() {
