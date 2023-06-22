@@ -164,12 +164,13 @@ pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
     let mut res = String::new();
     let mut nodes = nodes.iter().collect::<Vec<_>>();
     nodes.sort_by_key(|&(nd, _nd_entry)| nd);
+    writeln!(res, "    Hash    State   Last seen");
     for (nd, nd_entry) in nodes {
         use std::fmt::Write;
         let since_last_seen = ts.saturating_sub(nd_entry.last_seen_time);
         #[allow(clippy::comparison_chain)]
         let since_last_seen = if since_last_seen < 100_000 {
-            format!("{since_last_seen:>4?}")
+            format!("{since_last_seen:>5?}")
         } else if since_last_seen == 100_000 {
             "=100k".to_string()
         } else {
@@ -177,7 +178,7 @@ pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
         };
         writeln!(
             res,
-            "    {}  {:>12?}  {since_last_seen}",
+            "    {}  {:>12?}  {since_last_seen} ms",
             super::fmt_hex_arr(&nd.0),
             nd_entry.status,
         )
