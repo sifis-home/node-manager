@@ -70,6 +70,14 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
 
     match cmd {
         "info" | "i" | "t" => {
+            let detail = match args.next() {
+                Some("d" | "detail") => true,
+                Some(v) => {
+                    println!("error: wrong parameter '{v}'. Must be 'd' or 'detail'.");
+                    false
+                }
+                None => false,
+            };
             let node = &ctx.node;
             let ts = node_manager::timestamp().unwrap();
             println!(
@@ -77,7 +85,11 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
                 context::fmt_hex_arr(node.node_id())
             );
             println!("Shared key: {}", context::fmt_hex_arr(node.shared_key()));
-            println!("Node manager table: {}", node.table_str_ext(ts));
+            if detail {
+                println!("Node manager table: {}", node.table_str_ext(ts));
+            } else {
+                println!("Node manager table: {}", node.table_str());
+            }
             println!(
                 "Connected to DHT: {}",
                 if ctx.connected_to_dht() { "Yes" } else { "No" }
