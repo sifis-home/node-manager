@@ -69,7 +69,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
     let cmd = args.next().unwrap();
 
     match cmd {
-        "info" | "i" | "t" => {
+        "info" | "i" | "t" | "td" => {
             let detail = match args.next() {
                 Some("d" | "detail") => true,
                 Some(v) => {
@@ -78,6 +78,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
                 }
                 None => false,
             };
+            let detail = detail || cmd == "td";
             let node = &ctx.node;
             let ts = node_manager::timestamp().unwrap();
             println!(
