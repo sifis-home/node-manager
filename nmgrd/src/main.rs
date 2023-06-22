@@ -86,7 +86,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             );
             println!("Shared key: {}", context::fmt_hex_arr(node.shared_key()));
             if detail {
-                println!("Node manager table: {}", node.table_str_ext(ts));
+                println!("Node manager table:\n{}", node.table_str_ext(ts));
             } else {
                 println!("Node manager table: {}", node.table_str());
             }
