@@ -343,7 +343,7 @@ impl Context {
             .get("start_vote")
             .and_then(|v| v.as_bool())
             .unwrap_or(self.cfg.auto_start_vote_on_suggestion());
-        log::info!("saving {kind_str}vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}", fmt_hex_arr(&topic_key.subject));
+        log::info!("saving {kind_str}vote suggestion for subject {}, should_kick={should_kick}, deleted={deleted}, start_vote={start_vote}", fmt_hex_arr(&topic_key.subject));
         let resp = self.node.save_vote_suggestion(
             &topic_key.subject,
             timestamp()?,
