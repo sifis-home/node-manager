@@ -162,7 +162,9 @@ pub(crate) fn table_str<T>(nodes: &NodeTable<T>) -> String {
 
 pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
     let mut res = String::new();
-    for (nd, nd_entry) in nodes.iter() {
+    let mut nodes = nodes.iter().collect::<Vec<_>>();
+    nodes.sort_by_key(|&(nd, _nd_entry)| nd);
+    for (nd, nd_entry) in nodes {
         use std::fmt::Write;
         let since_last_seen = ts.saturating_sub(nd_entry.last_seen_time);
         #[allow(clippy::comparison_chain)]
