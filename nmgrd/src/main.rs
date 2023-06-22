@@ -84,6 +84,10 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             println!("Own lobby ID: {}", ctx.lobby_local_peer_id_display());
             println!("Lobby peers: {}", ctx.lobby_peer_table_str());
         }
+        "config" | "c" => {
+            println!("Configuration toml:");
+            println!("{}", toml::to_string(ctx.config()).unwrap());
+        }
         "pause" | "p" => {
             ctx.self_pause().await.unwrap();
         }
