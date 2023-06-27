@@ -3,6 +3,7 @@ use crate::PublicKey;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 #[derive(Deserialize, Serialize, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum NodeStatus {
@@ -148,7 +149,6 @@ pub fn serialize<T>(this: &NodeTable<T>) -> Result<Vec<u8>> {
 pub(crate) fn table_str<T>(nodes: &NodeTable<T>) -> String {
     let mut res = String::new();
     for (nd, nd_entry) in nodes.iter() {
-        use std::fmt::Write;
         write!(
             res,
             "({}; {:?}), ",
@@ -164,9 +164,8 @@ pub(crate) fn table_str_ext<T>(nodes: &NodeTable<T>, ts: u64) -> String {
     let mut res = String::new();
     let mut nodes = nodes.iter().collect::<Vec<_>>();
     nodes.sort_by_key(|&(nd, _nd_entry)| nd);
-    writeln!(res, "    Hash    State   Last seen");
+    writeln!(res, "    Hash    State   Last seen").unwrap();
     for (nd, nd_entry) in nodes {
-        use std::fmt::Write;
         let since_last_seen = ts.saturating_sub(nd_entry.last_seen_time);
         #[allow(clippy::comparison_chain)]
         let since_last_seen = if since_last_seen < 100_000 {
