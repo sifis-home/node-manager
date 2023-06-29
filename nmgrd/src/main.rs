@@ -97,6 +97,7 @@ async fn handle_input_line(line: std::io::Result<Option<String>>, ctx: &mut Cont
             );
             println!("Own lobby ID: {}", ctx.lobby_local_peer_id_display());
             println!("Lobby peers: {}", ctx.lobby_peer_table_str());
+            println!("IP addresses: {}", context::ip_addrs_string().unwrap());
         }
         "config" | "c" => {
             println!("Configuration toml:");

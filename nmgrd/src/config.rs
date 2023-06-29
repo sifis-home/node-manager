@@ -73,6 +73,9 @@ pub struct Config {
     auto_start_vote_on_suggestion: bool,
 
     #[serde(default)]
+    no_ip_publishing: bool,
+
+    #[serde(default)]
     pub debug_sometimes_send_keepalive: bool,
 
     #[serde(default)]
@@ -208,6 +211,9 @@ impl Config {
     }
     pub fn auto_start_vote_on_suggestion(&self) -> bool {
         self.auto_start_vote_on_suggestion
+    }
+    pub fn no_ip_publishing(&self) -> bool {
+        self.no_ip_publishing
     }
 }
 

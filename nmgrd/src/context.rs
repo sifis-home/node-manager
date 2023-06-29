@@ -16,6 +16,7 @@ use node_manager::{timestamp, NodeManager, NodeManagerBuilder, Response};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::net::IpAddr;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tokio::time::{Interval, MissedTickBehavior};
@@ -23,6 +24,7 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 const MEMBERS_TOPIC: &str = "SIFIS:node-manager-members";
 const VOTE_SUGGESTION_TOPIC: &str = "SIFIS:node-manager-kick-vote-sugg";
+const ID_IP_MAPPING_TOPIC: &str = "SIFIS:node-manager-id-ip-mapping";
 
 pub struct Context {
     cfg: Config,
@@ -33,6 +35,7 @@ pub struct Context {
     make_member_interval: Interval,
     keepalive_interval: Interval,
     vote_interval: Interval,
+    ip_publish_interval: Interval,
     start_time: Instant,
     never_had_key: bool,
     wait_until_set_own: Duration,
@@ -90,6 +93,11 @@ impl Context {
         let mut vote_interval = tokio::time::interval(Duration::from_millis(VOTE_TIMER_INTERVAL));
         vote_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
+        const IP_PUBLISH_TIMER_INTERVAL: u64 = 30113;
+        let mut ip_publish_interval =
+            tokio::time::interval(Duration::from_millis(IP_PUBLISH_TIMER_INTERVAL));
+        ip_publish_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
         let start_time = Instant::now();
         let never_had_key = node.shared_key().is_empty();
 
@@ -106,6 +114,7 @@ impl Context {
             make_member_interval,
             keepalive_interval,
             vote_interval,
+            ip_publish_interval,
             start_time,
             never_had_key,
             wait_until_set_own,
@@ -158,6 +167,13 @@ impl Context {
                 if !self.node.shared_key().is_empty() {
                     let resp = self.node.check_finish_votes(timestamp()?)?;
                     self.handle_responses(&resp).await?;
+                }
+            }
+            _ = self.ip_publish_interval.tick() => {
+                if !self.cfg.no_ip_publishing() {
+                    if let Err(e) = self.publish_ip().await {
+                        log::info!("Error during publishing of IP: {e}");
+                    }
                 }
             }
             ws_msg = self.ws_conn.select_next_some() => {
@@ -513,6 +529,49 @@ impl Context {
         let should_send = (ts / INTERVAL_MS) % 2 == 0;
         Ok(should_send)
     }
+    pub async fn publish_ip(&mut self) -> Result<(), Error> {
+        if !self.connected_to_dht() {
+            log::info!("Skipping IP info publishing due to not being connected to DHT");
+            return Ok(());
+        }
+        let ip_list = get_ip_addrs()?;
+        let ip_list_json = ip_list
+            .iter()
+            .map(|(ifname, ip)| {
+                let version = match ip {
+                    IpAddr::V4(_) => 4,
+                    IpAddr::V6(_) => 6,
+                };
+                let ip = ip.to_string();
+                serde_json::json!({ "ifname": ifname , "ip": ip, "kind": version })
+            })
+            .collect::<Vec<_>>();
+        let ts = timestamp()?;
+        let value = serde_json::json!({
+            "time": ts,
+            "ip_list": ip_list_json,
+        });
+        self.send_ws_msg(SyncWebSocketDomoRequest::RequestPostTopicUUID {
+            topic_name: ID_IP_MAPPING_TOPIC.to_string(),
+            topic_uuid: fmt_hex_arr(self.node.shared_key()),
+            value,
+        })
+        .await?;
+        log::info!("IP addresses published successfully on DHT");
+        Ok(())
+    }
+}
+
+pub(crate) fn get_ip_addrs() -> Result<Vec<(String, IpAddr)>, Error> {
+    Ok(local_ip_address::list_afinet_netifas()?)
+}
+
+pub(crate) fn ip_addrs_string() -> Result<String, Error> {
+    let components = get_ip_addrs()?
+        .iter()
+        .map(|(ifname, ip)| format!("{ifname}: {ip}"))
+        .collect::<Vec<String>>();
+    Ok(components.join(", "))
 }
 
 pub(crate) fn fmt_hex_arr(arr: &[u8]) -> String {
